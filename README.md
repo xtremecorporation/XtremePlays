@@ -27,19 +27,19 @@ Build the self-contained app payload and the optional Velopack installer:
 ```powershell
 ./packaging/publish-velopack.ps1
 dotnet tool install --global vpk --version 1.2.161
-vpk pack --packId XtremePlays --packVersion 1.3.1 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
+vpk pack --packId XtremePlays --packVersion 1.3.2 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
 ./packaging/build-installer.ps1
 ```
 
-The integrated setup is written to `artifacts/XtremePlays-1.3.1-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
+The integrated setup is written to `artifacts/XtremePlays-1.3.2-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
 
 ## Publish an update with GitHub Actions
 
-The `Windows build` workflow builds app changes on pushes and pull requests to `main`. The `Build and publish Windows release` workflow runs only for a version tag such as `v1.3.1`. Before tagging a release:
+The `Windows build` workflow builds app changes on pushes and pull requests to `main`. The `Build and publish Windows release` workflow runs only for a version tag such as `v1.3.2`. Before tagging a release:
 
 1. Update the app and setup `<Version>` values to the same `x.y.z` version.
 2. Add a matching section at the top of `CHANGELOG.md`.
-3. Push the version tag, for example `git tag v1.3.1` followed by `git push origin v1.3.1`.
+3. Push the version tag, for example `git tag v1.3.2` followed by `git push origin v1.3.2`.
 
 GitHub Actions builds the app, creates Velopack full/delta packages, builds the integrated driver setup, uploads all release assets to a draft, and publishes only after the full setup is attached. No personal access token or signing secret is required; the workflow uses its repository-scoped `GITHUB_TOKEN`. The repository must be public for anonymous clients to receive updates.
 

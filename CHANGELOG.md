@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2
+
+- Fix Full Setup's post-install check and launch action to use the actual Windows launcher name created by Velopack.
+- Show the installer exit code or missing launcher path if a future installation fails, instead of a generic error.
+
 ## 1.3.1
 
 - Fix app startup so the main window opens reliably after install and when launched from its shortcuts.

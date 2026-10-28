@@ -9,7 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>XtremePlaysSetup</AssemblyName>
     <RootNamespace>XtremePlays.Setup</RootNamespace>
-    <Version>1.3.1</Version>
+    <Version>1.3.2</Version>
     <ApplicationIcon>..\XtremePlays.App\Assets\XtremePlays.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PublishSingleFile>true</PublishSingleFile>

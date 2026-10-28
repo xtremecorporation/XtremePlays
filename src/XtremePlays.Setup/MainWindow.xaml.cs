@@ -14,12 +14,14 @@ namespace XtremePlays.Setup;
 public partial class MainWindow : Window
 {
     private const string ProductName = "X-TREME PLAY'S";
+    private const string AppLauncherFileName = ProductName + ".exe";
     private const string WebViewRuntimeKey = @"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
     private bool _isInstalling;
     private bool _driverReady = true;
     private bool _driverInstallationRequested;
 
     private string InstallDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XtremePlays");
+    private string AppLauncherPath => Path.Combine(InstallDirectory, AppLauncherFileName);
     private string DesktopShortcutPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), $"{ProductName}.lnk");
 
     public MainWindow()
@@ -165,8 +167,11 @@ public partial class MainWindow : Window
                 }
             });
 
-            if (appSetup.ExitCode != 0 || !File.Exists(Path.Combine(InstallDirectory, "XtremePlays.exe")))
-                throw new InvalidOperationException("The app did not finish installing. Run this setup again and check the Windows security prompt if one appears.");
+            if (appSetup.ExitCode != 0)
+                throw new InvalidOperationException($"The app installer exited with code {appSetup.ExitCode}. Run setup again; if the problem continues, share this code with support.");
+
+            if (!File.Exists(AppLauncherPath))
+                throw new InvalidOperationException($"The installer finished, but its app launcher was not found at {AppLauncherPath}. Run setup again and share this path if the problem continues.");
         }
         finally
         {
@@ -261,8 +266,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                var appPath = Path.Combine(InstallDirectory, "XtremePlays.exe");
-                Process.Start(new ProcessStartInfo(appPath) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(AppLauncherPath) { UseShellExecute = true });
             }
             catch (Exception exception)
             {
