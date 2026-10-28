@@ -1,0 +1,49 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Color x:Key="AppBackgroundColor">#F3F8FA</Color>
+    <Color x:Key="SurfaceColor">#FFFFFF</Color>
+    <Color x:Key="AccentBlueColor">#669CB5</Color>
+    <Color x:Key="AccentGreenColor">#6BA889</Color>
+    <Color x:Key="PaleMintColor">#E7F3EB</Color>
+    <Color x:Key="MainTextColor">#20332D</Color>
+    <Color x:Key="MutedTextColor">#647570</Color>
+    <Color x:Key="SecondarySurfaceColor">#F7FAFB</Color>
+    <Color x:Key="SecondaryTextColor">#49615A</Color>
+    <Color x:Key="NavigationActiveColor">#E7F3EB</Color>
+    <Color x:Key="SubtleBlueColor">#EEF5F8</Color>
+    <Color x:Key="SubtleBorderColor">#DDE8E8</Color>
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource AppBackgroundColor}" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
+    <SolidColorBrush x:Key="AccentBlueBrush" Color="{StaticResource AccentBlueColor}" />
+    <SolidColorBrush x:Key="AccentGreenBrush" Color="{StaticResource AccentGreenColor}" />
+    <SolidColorBrush x:Key="PaleMintBrush" Color="{StaticResource PaleMintColor}" />
+    <SolidColorBrush x:Key="MainTextBrush" Color="{StaticResource MainTextColor}" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="{StaticResource MutedTextColor}" />
+    <SolidColorBrush x:Key="SecondarySurfaceBrush" Color="{StaticResource SecondarySurfaceColor}" />
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="{StaticResource SecondaryTextColor}" />
+    <SolidColorBrush x:Key="NavigationActiveBrush" Color="{StaticResource NavigationActiveColor}" />
+    <SolidColorBrush x:Key="SubtleBlueBrush" Color="{StaticResource SubtleBlueColor}" />
+    <SolidColorBrush x:Key="SubtleBorderBrush" Color="{StaticResource SubtleBorderColor}" />
+    <Style TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource MainTextBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="12,9" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonSurface" Background="{TemplateBinding Background}" CornerRadius="10">
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonSurface" Property="Background" Value="#0D669CB5" /></Trigger>
+                        <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonSurface" Property="Background" Value="#19669CB5" /></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ButtonSurface" Property="BorderBrush" Value="{DynamicResource AccentBlueBrush}" /><Setter TargetName="ButtonSurface" Property="BorderThickness" Value="2" /></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

@@ -1,0 +1,57 @@
+<Window x:Class="XtremePlays.Setup.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="X-TREME PLAY'S Setup"
+        Width="700" Height="600" MinWidth="620" MinHeight="560"
+        WindowStartupLocation="CenterScreen" Background="White"
+        Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI"
+        Closing="Window_Closing">
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="X-TREME PLAY'S" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+            <TextBlock Text="Install the app and audio cable" FontSize="27" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="This setup installs the Windows app for your account and includes the official VB-CABLE driver package." FontSize="14" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,18" />
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="VB-CABLE · by VB-Audio Software" FontSize="15" FontWeight="SemiBold" />
+                <TextBlock Text="The virtual audio driver is separate donationware. The original package is included unchanged. You can identify VB-Audio as its source and donate or purchase a license using the official page." TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="0,7,0,8" />
+                <TextBlock>
+                    <Hyperlink NavigateUri="https://vb-cable.com/" RequestNavigate="OpenLink_Click">Product information</Hyperlink>
+                    <Run Text="  ·  " />
+                    <Hyperlink NavigateUri="https://vb-audio.com/Services/licensing.htm" RequestNavigate="OpenLink_Click">Licensing and donation information</Hyperlink>
+                </TextBlock>
+                <CheckBox x:Name="DonationNoticeAccepted" Content="I understand VB-CABLE is a separate VB-Audio product and donationware." IsChecked="False" Click="DonationNoticeAccepted_Click" Margin="0,12,0,0" />
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" BorderBrush="#D8E2E8" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="Install location" FontWeight="SemiBold" />
+                <TextBlock x:Name="InstallPathText" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,14" />
+                <CheckBox x:Name="DesktopShortcutCheckBox" Content="Create a desktop shortcut" IsChecked="True" />
+                <TextBlock Text="Windows asks for administrator access only if VB-CABLE needs to be installed or the old system-wide app needs migration. Updates are installed automatically without reinstalling the driver." TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="0,14,0,0" />
+                <TextBlock Text="If Microsoft Edge WebView2 Runtime is missing, setup installs it from Microsoft. Internet is needed only for that missing-runtime step." TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+
+        <TextBlock x:Name="StatusText" Grid.Row="3" Text="Ready to install." Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+        <DockPanel Grid.Row="4" LastChildFill="False">
+            <TextBlock x:Name="InstallVersionText" Text="x64" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button x:Name="CloseButton" Content="Cancel" Width="100" Height="38" Margin="0,0,10,0" Click="CloseButton_Click" />
+                <Button x:Name="InstallButton" Content="Install" Width="140" Height="38" IsEnabled="False" Click="InstallButton_Click" Background="{StaticResource AccentBrush}" Foreground="White" FontWeight="SemiBold" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

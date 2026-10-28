@@ -1,0 +1,97 @@
+name: Build and publish Windows release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      VPK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Confirm tag and project versions match
+        shell: pwsh
+        run: |
+          $tagVersion = $env:GITHUB_REF_NAME -replace '^v', ''
+          [xml]$appProject = Get-Content src/XtremePlays.App/XtremePlays.App.csproj
+          [xml]$setupProject = Get-Content src/XtremePlays.Setup/XtremePlays.Setup.csproj
+          $appVersion = [string]$appProject.Project.PropertyGroup.Version
+          $setupVersion = [string]$setupProject.Project.PropertyGroup.Version
+          if ($tagVersion -ne $appVersion -or $tagVersion -ne $setupVersion) {
+            throw "Release tag $tagVersion must match both project versions (app $appVersion, setup $setupVersion)."
+          }
+          "APP_VERSION=$tagVersion" >> $env:GITHUB_ENV
+
+      - name: Install Velopack packager
+        shell: pwsh
+        run: dotnet tool install --global vpk --version 1.2.161
+
+      - name: Publish the app without portable-mode data
+        shell: pwsh
+        run: ./packaging/publish-velopack.ps1
+
+      - name: Download the previous release feed for delta updates
+        shell: pwsh
+        run: |
+          $repositoryUrl = "https://github.com/$env:GITHUB_REPOSITORY"
+          New-Item -ItemType Directory -Path artifacts/velopack -Force | Out-Null
+          $previousRelease = gh release list --repo $env:GITHUB_REPOSITORY --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not check the release history.' }
+          if (-not [string]::IsNullOrWhiteSpace($previousRelease)) {
+            vpk download github --repoUrl $repositoryUrl --token $env:VPK_TOKEN --outputDir artifacts/velopack
+            if ($LASTEXITCODE -ne 0) { throw 'Could not download the previous Velopack release feed.' }
+          }
+          else {
+            Write-Host 'This is the first release; there is no previous Velopack feed.'
+          }
+
+      - name: Create update packages and per-user installer
+        shell: pwsh
+        run: |
+          $notes = @(Get-Content CHANGELOG.md)
+          $sectionHeader = "^##\s+$([regex]::Escape($env:APP_VERSION))\s*$"
+          $start = -1
+          for ($i = 0; $i -lt $notes.Count; $i++) {
+            if ($notes[$i] -match $sectionHeader) { $start = $i; break }
+          }
+          if ($start -lt 0) { throw "CHANGELOG.md has no section for $env:APP_VERSION." }
+          $end = $start + 1
+          while ($end -lt $notes.Count -and $notes[$end] -notmatch '^##\s+') { $end++ }
+          $releaseNotes = Join-Path $env:RUNNER_TEMP 'release-notes.md'
+          $notes[$start..($end - 1)] | Set-Content -LiteralPath $releaseNotes -Encoding utf8
+          vpk pack --packId XtremePlays --packVersion $env:APP_VERSION --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --releaseNotes $releaseNotes --noPortable --outputDir artifacts/velopack
+          if ($LASTEXITCODE -ne 0) { throw 'Velopack packaging failed.' }
+          ./packaging/build-installer.ps1 -AppSetupPath artifacts/velopack/XtremePlays-win-Setup.exe
+          if ($LASTEXITCODE -ne 0) { throw 'The integrated driver setup failed to build.' }
+
+      - name: Upload update packages as a draft release
+        shell: pwsh
+        run: |
+          $repositoryUrl = "https://github.com/$env:GITHUB_REPOSITORY"
+          $releaseName = "X-TREME PLAY'S $env:APP_VERSION"
+          vpk upload github --repoUrl $repositoryUrl --outputDir artifacts/velopack --token $env:VPK_TOKEN --tag $env:GITHUB_REF_NAME --releaseName $releaseName --targetCommitish main --merge
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload the Velopack packages.' }
+
+      - name: Add integrated setup and publish release
+        shell: pwsh
+        run: |
+          $fullSetup = "artifacts/XtremePlays-$env:APP_VERSION-Full-Setup.exe"
+          gh release upload $env:GITHUB_REF_NAME $fullSetup --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload the setup that includes VB-CABLE.' }
+          gh release edit $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish the GitHub release.' }

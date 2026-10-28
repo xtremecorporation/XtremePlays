@@ -1,0 +1,24 @@
+<Window x:Class="XtremePlays.App.Views.BookmarkDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Bookmark" Width="480" Height="285" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource AppBackgroundBrush}"
+        FontFamily="Segoe UI Variable Text, Segoe UI">
+    <Grid Margin="24">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <TextBlock x:Name="DialogTitle" Text="Add bookmark" FontSize="21" FontWeight="SemiBold" Foreground="{DynamicResource MainTextBrush}" Margin="0,0,0,17" />
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="Name" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,0,0,5" />
+            <TextBox x:Name="TitleInput" Padding="9" AutomationProperties.Name="Bookmark name" />
+        </StackPanel>
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="Website address" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,0,0,5" />
+            <TextBox x:Name="UrlInput" Padding="9" AutomationProperties.Name="Website address" />
+        </StackPanel>
+        <TextBlock x:Name="ValidationText" Grid.Row="3" Foreground="#B34848" FontSize="12" VerticalAlignment="Top" Margin="0,8,0,0" TextWrapping="Wrap" />
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Cancel" IsCancel="True" Margin="0,0,8,0" />
+            <Button Content="Save bookmark" Background="{DynamicResource PaleMintBrush}" Click="Save_Click" IsDefault="True" />
+        </StackPanel>
+    </Grid>
+</Window>

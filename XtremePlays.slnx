@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/XtremePlays.App/XtremePlays.App.csproj" />
+    <Project Path="src/XtremePlays.Setup/XtremePlays.Setup.csproj" />
+  </Folder>
+</Solution>

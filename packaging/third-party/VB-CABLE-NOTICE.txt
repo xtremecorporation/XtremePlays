@@ -1,0 +1,18 @@
+VB-CABLE THIRD-PARTY NOTICE
+
+VB-CABLE is a separate virtual audio driver produced by VB-Audio Software.
+The setup includes the unchanged official base VB-CABLE package, version 2.1.5.8.
+
+Origin and product information: https://vb-cable.com/
+VB-Audio licensing and donation information: https://vb-audio.com/Services/licensing.htm
+
+VB-CABLE is donationware. Contributions are welcome. The driver is not part of
+X-TREME PLAY'S and remains the property of VB-Audio Software. This notice does
+not replace the driver's own license included in its original package.
+
+The distribution terms allow embedding the base VB-CABLE package with an
+application when users can identify VB-Audio as its source and can donate or
+purchase a license. Professional or commercial distribution may require
+additional VB-Audio licenses. See the official licensing page above.
+
+X-TREME PLAY'S does not bundle VB-CABLE A+B or VB-CABLE C+D.

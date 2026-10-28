@@ -1,0 +1,280 @@
+<Window x:Class="XtremePlays.App.Views.ShellWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="X-TREME PLAY'S · Your Music, Your Space, Your Play"
+        Icon="pack://application:,,,/Assets/XtremePlays.ico"
+        Width="1180" Height="760" MinWidth="920" MinHeight="600"
+        WindowStartupLocation="CenterScreen" ResizeMode="CanResize"
+        Background="{DynamicResource AppBackgroundBrush}"
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Loaded="Window_Loaded" Closing="Window_Closing">
+    <Grid x:Name="RootGrid" Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="HeaderRow" Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition x:Name="FooterRow" Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="BrandHeader" Grid.Row="0" Margin="6,0,6,16">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Image Source="/Assets/BrandLogo.png" Width="40" Height="40" Stretch="Uniform" Margin="0,0,11,0" AutomationProperties.Name="X-TREME PLAY'S logo" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="X-TREME PLAY'S" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource MainTextBrush}" />
+                    <TextBlock Text="YOUR MUSIC. YOUR SPACE. YOUR PLAY." FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" />
+                </StackPanel>
+            </StackPanel>
+            <Border Grid.Column="1" Padding="12,7" Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="12" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse x:Name="StatusDot" Width="7" Height="7" Fill="{DynamicResource AccentGreenBrush}" Margin="0,0,7,0" VerticalAlignment="Center" />
+                    <TextBlock x:Name="AppStatusBadge" Text="Starting" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="NavigationColumn" Width="208" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border x:Name="SideNavigation" Grid.Column="0" Background="{DynamicResource SurfaceBrush}" CornerRadius="18" Padding="10">
+                <DockPanel LastChildFill="False">
+                    <TextBlock DockPanel.Dock="Top" Text="YOUR SPACE" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource MutedTextBrush}" Margin="10,8,0,8" />
+                    <StackPanel DockPanel.Dock="Top">
+                        <Button Tag="Home" Click="NavigationItem_Click" Background="{DynamicResource NavigationActiveBrush}" AutomationProperties.Name="Open Home"><StackPanel Orientation="Horizontal"><TextBlock Text="⌂" FontSize="17" Width="26" /><TextBlock Text="Home" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Tag="YouTube" Click="NavigationItem_Click" AutomationProperties.Name="Open YouTube"><StackPanel Orientation="Horizontal"><TextBlock Text="▶" FontSize="14" Width="26" /><TextBlock Text="YouTube" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Tag="YouTube Music" Click="NavigationItem_Click" AutomationProperties.Name="Open YouTube Music"><StackPanel Orientation="Horizontal"><TextBlock Text="♫" FontSize="17" Width="26" /><TextBlock Text="YouTube Music" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Tag="Spotify" Click="NavigationItem_Click" AutomationProperties.Name="Open Spotify"><StackPanel Orientation="Horizontal"><TextBlock Text="●" FontSize="15" Width="26" /><TextBlock Text="Spotify" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Tag="Bookmarks" Click="NavigationItem_Click" AutomationProperties.Name="Open Bookmarks"><StackPanel Orientation="Horizontal"><TextBlock Text="☆" FontSize="18" Width="26" /><TextBlock Text="Bookmarks" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Separator Margin="8,12" Background="{DynamicResource SubtleBorderBrush}" />
+                        <Button Tag="Audio Sharing" Click="NavigationItem_Click" AutomationProperties.Name="Open Audio Sharing"><StackPanel Orientation="Horizontal"><TextBlock Text="◉" FontSize="16" Width="26" /><TextBlock Text="Audio Sharing" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Tag="Settings" Click="NavigationItem_Click" AutomationProperties.Name="Open Settings"><StackPanel Orientation="Horizontal"><TextBlock Text="⚙" FontSize="16" Width="26" /><TextBlock Text="Settings" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Tag="About" Click="NavigationItem_Click" AutomationProperties.Name="Open About"><StackPanel Orientation="Horizontal"><TextBlock Text="ⓘ" FontSize="16" Width="26" /><TextBlock Text="About" VerticalAlignment="Center" /></StackPanel></Button>
+                    </StackPanel>
+                    <Border DockPanel.Dock="Bottom" Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="10" Padding="6" Margin="0,8,0,0">
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="6" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Button x:Name="QuickMicMuteButton" Content="Mic ON" Click="QuickMicMute_Click" Padding="5,6" FontSize="11" Background="{DynamicResource PaleMintBrush}" ToolTip="Mute or unmute microphone sent to the call output" AutomationProperties.Name="Mute or unmute microphone sent to the call output" />
+                            <Button x:Name="QuickMusicMuteButton" Grid.Column="2" Content="Music ON" Click="QuickMusicMute_Click" Padding="5,6" FontSize="11" Background="{DynamicResource SubtleBlueBrush}" ToolTip="Mute or unmute music sent to the call output" AutomationProperties.Name="Mute or unmute music sent to the call output" />
+                        </Grid>
+                    </Border>
+                    <Border DockPanel.Dock="Bottom" Background="{DynamicResource SubtleBlueBrush}" CornerRadius="12" Padding="10" Margin="0,14,0,0">
+                        <TextBlock Text="Your music accounts stay in your private browser profile." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" />
+                    </Border>
+                </DockPanel>
+            </Border>
+
+            <Grid x:Name="ContentHost" Grid.Column="2">
+                <Border x:Name="HomePanel" Background="{DynamicResource SurfaceBrush}" CornerRadius="18" Padding="32" Visibility="Visible">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="WELCOME TO YOUR LISTENING SPACE" Foreground="{DynamicResource AccentGreenBrush}" FontSize="11" FontWeight="Bold" />
+                            <TextBlock Text="Your music, all in one place." Foreground="{DynamicResource MainTextBrush}" FontSize="30" FontWeight="SemiBold" Margin="0,5,0,0" />
+                            <TextBlock Text="Open a music service in your private embedded browser. Sign in through each provider's official website." Foreground="{DynamicResource MutedTextBrush}" FontSize="14" LineHeight="22" TextWrapping="Wrap" Margin="0,10,0,0" MaxWidth="620" />
+                        </StackPanel>
+                        <Grid Grid.Row="1" Margin="0,28,0,24">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Button Tag="YouTube" Click="NavigationItem_Click" Background="{DynamicResource PaleMintBrush}" Padding="20" AutomationProperties.Name="Open YouTube">
+                                <StackPanel><TextBlock Text="01" Foreground="{DynamicResource AccentGreenBrush}" FontWeight="Bold" /><TextBlock Text="YouTube" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="17" Margin="0,11,0,5" /><TextBlock Text="Browse videos and music." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" /></StackPanel>
+                            </Button>
+                            <Button Grid.Column="2" Tag="YouTube Music" Click="NavigationItem_Click" Background="{DynamicResource SubtleBlueBrush}" Padding="20" AutomationProperties.Name="Open YouTube Music">
+                                <StackPanel><TextBlock Text="02" Foreground="{DynamicResource AccentBlueBrush}" FontWeight="Bold" /><TextBlock Text="YouTube Music" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="17" Margin="0,11,0,5" /><TextBlock Text="Your playlists and mixes." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" /></StackPanel>
+                            </Button>
+                            <Button Grid.Column="4" Tag="Spotify" Click="NavigationItem_Click" Background="{DynamicResource SecondarySurfaceBrush}" Padding="20" AutomationProperties.Name="Open Spotify">
+                                <StackPanel><TextBlock Text="03" Foreground="{DynamicResource AccentGreenBrush}" FontWeight="Bold" /><TextBlock Text="Spotify" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="17" Margin="0,11,0,5" /><TextBlock Text="Open your Spotify library." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" /></StackPanel>
+                            </Button>
+                        </Grid>
+                        <Border Grid.Row="2" Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="12" Padding="14">
+                            <TextBlock Text="Playback and account features depend on each music provider and your account. X-TREME PLAY'S does not bypass service restrictions." Foreground="{DynamicResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Grid x:Name="BrowserPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="14" Padding="8" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <Button x:Name="BackButton" Click="Back_Click" Padding="10,8" AutomationProperties.Name="Go back"><TextBlock Text="‹" FontSize="19" /></Button>
+                            <Button x:Name="ForwardButton" Grid.Column="1" Click="Forward_Click" Padding="10,8" AutomationProperties.Name="Go forward"><TextBlock Text="›" FontSize="19" /></Button>
+                            <Button Grid.Column="2" Click="Reload_Click" Padding="10,8" AutomationProperties.Name="Reload page"><TextBlock Text="↻" FontSize="17" /></Button>
+                            <Button Grid.Column="3" Click="Home_Click" Padding="10,8" AutomationProperties.Name="Return Home"><TextBlock Text="⌂" FontSize="16" /></Button>
+                            <TextBox x:Name="AddressBox" Grid.Column="4" VerticalContentAlignment="Center" Padding="11,8" Margin="5,0" KeyDown="AddressBox_KeyDown" AutomationProperties.Name="Website address or search" ToolTip="Enter a website address or search" />
+                            <Button Grid.Column="5" Click="NavigateAddress_Click" Background="{DynamicResource PaleMintBrush}" Margin="0,0,5,0">Go</Button>
+                            <Button Grid.Column="6" Click="ToggleCompactMode_Click" Padding="10,8" AutomationProperties.Name="Toggle compact window"><TextBlock x:Name="CompactButtonText" Text="Mini" /></Button>
+                        </Grid>
+                    </Border>
+                    <Border Grid.Row="1" Background="{DynamicResource SurfaceBrush}" CornerRadius="12" Padding="7" Margin="0,0,0,10">
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="220" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="BOOKMARK" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" Margin="7,0,9,0" />
+                            <ComboBox x:Name="QuickBookmarkSelector" Grid.Column="1" DisplayMemberPath="Title" VerticalContentAlignment="Center" />
+                            <Button Grid.Column="2" Click="OpenSelectedBookmark_Click" Background="{DynamicResource SubtleBlueBrush}" Margin="6,0,0,0" Padding="9,7">Open</Button>
+                            <Button Grid.Column="3" Click="AddCurrentBookmark_Click" HorizontalAlignment="Right" Padding="9,7" AutomationProperties.Name="Add current page to bookmarks">＋ Save this page</Button>
+                        </Grid>
+                    </Border>
+                    <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="16" ClipToBounds="True">
+                        <Grid>
+                            <wv2:WebView2 x:Name="Browser" Visibility="Collapsed" />
+                            <Grid x:Name="BrowserUnavailablePanel" Visibility="Collapsed" Background="{DynamicResource SurfaceBrush}">
+                                <StackPanel MaxWidth="500" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="28">
+                                    <TextBlock Text="The browser component needs attention" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource MainTextBrush}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="BrowserErrorText" Text="The Microsoft Edge WebView2 Runtime is not available." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,10,0,17" />
+                                    <Button Content="Get WebView2 Runtime" Click="InstallRuntime_Click" HorizontalAlignment="Left" Background="{DynamicResource PaleMintBrush}" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid x:Name="BrowserLoadingOverlay" Visibility="Collapsed" Background="#BFFFFFFF">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"><ProgressBar IsIndeterminate="True" Width="180" Height="4" /><TextBlock Text="Loading page…" Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" Margin="0,10,0,0" /></StackPanel>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Border x:Name="BookmarksPanel" Background="{DynamicResource SurfaceBrush}" CornerRadius="18" Padding="28" Visibility="Collapsed">
+                    <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <StackPanel><TextBlock Text="YOUR COLLECTION" Foreground="{DynamicResource AccentGreenBrush}" FontSize="11" FontWeight="Bold" /><TextBlock Text="Bookmarks" Foreground="{DynamicResource MainTextBrush}" FontSize="28" FontWeight="SemiBold" Margin="0,5,0,0" /><TextBlock Text="Save, edit, reorder, and open your favorite music sites." Foreground="{DynamicResource MutedTextBrush}" Margin="0,7,0,0" /></StackPanel>
+                        <Border Grid.Row="1" Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="12" Padding="12" Margin="0,14,0,0">
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center"><TextBlock Text="BACKUP &amp; RESTORE" Foreground="{DynamicResource AccentBlueBrush}" FontSize="10" FontWeight="Bold" /><TextBlock Text="Save or replace your full bookmark collection as JSON." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,3,10,0" TextWrapping="Wrap" /></StackPanel>
+                                <Button Grid.Column="1" Content="Export JSON" Click="ExportBookmarks_Click" Margin="4,0" Background="{DynamicResource PaleMintBrush}" AutomationProperties.Name="Export bookmarks to a JSON backup" />
+                                <Button Grid.Column="2" Content="Restore JSON" Click="RestoreBookmarks_Click" Margin="4,0" Background="{DynamicResource SubtleBlueBrush}" AutomationProperties.Name="Restore bookmarks from a JSON backup" />
+                            </Grid>
+                        </Border>
+                        <ListBox x:Name="BookmarkList" Grid.Row="2" DisplayMemberPath="Title" Margin="0,16,0,16" Padding="6" SelectionChanged="BookmarkList_SelectionChanged" AutomationProperties.Name="Saved bookmarks" />
+                        <Grid Grid.Row="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock x:Name="BookmarkDetails" Text="" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,12,0" />
+                            <Button Grid.Column="1" Content="Add" Click="AddBookmark_Click" Background="{DynamicResource PaleMintBrush}" Margin="3,0" />
+                            <Button Grid.Column="2" Content="Edit" Click="EditBookmark_Click" Margin="3,0" />
+                            <Button Grid.Column="3" Content="Remove" Click="RemoveBookmark_Click" Margin="3,0" />
+                            <StackPanel Grid.Column="4" Orientation="Horizontal"><Button Content="↑" Click="MoveBookmarkUp_Click" Padding="10,8" Margin="3,0" AutomationProperties.Name="Move bookmark up" /><Button Content="↓" Click="MoveBookmarkDown_Click" Padding="10,8" Margin="3,0" AutomationProperties.Name="Move bookmark down" /></StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border x:Name="AudioPanel" Background="{DynamicResource SurfaceBrush}" CornerRadius="18" Padding="24" Visibility="Collapsed">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="LIVE MIXER · STARTS ONLY WHEN YOU PRESS START" Foreground="{DynamicResource AccentBlueBrush}" FontSize="11" FontWeight="Bold" />
+                            <TextBlock Text="Voice + music to your call" Foreground="{DynamicResource MainTextBrush}" FontSize="26" FontWeight="SemiBold" Margin="0,5,0,0" />
+                            <TextBlock Text="When sharing is on, your microphone and X-TREME PLAY'S browser audio are mixed to a virtual cable. The app captures no audio until you press Start, and stops when you press Stop or close the app." Foreground="{DynamicResource MutedTextBrush}" Margin="0,7,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Grid Grid.Row="1" Margin="0,16,0,4">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="MICROPHONE · VOICE INPUT" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="AudioMicrophoneSelector" DisplayMemberPath="Name" SelectionChanged="AudioMicrophoneSelector_SelectionChanged" AutomationProperties.Name="Microphone for voice" />
+                                    <Button x:Name="SaveAudioSelectionButton" Grid.Column="1" Content="OK" Click="SaveAudioSelection_Click" IsEnabled="False" MinWidth="62" Margin="6,0,0,0" Background="{DynamicResource PaleMintBrush}" AutomationProperties.Name="Save selected microphone" />
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="CALL OUTPUT · VIRTUAL CABLE" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                <ComboBox x:Name="AudioOutputSelector" DisplayMemberPath="Name" SelectionChanged="AudioOutputSelector_SelectionChanged" AutomationProperties.Name="Virtual cable output for the mixed audio" />
+                            </StackPanel>
+                            <Button x:Name="RefreshAudioDevicesButton" Grid.Column="3" Content="Refresh" Click="RefreshAudioDevices_Click" Background="{DynamicResource SubtleBlueBrush}" Margin="8,17,0,0" AutomationProperties.Name="Refresh microphone and virtual cable devices" />
+                        </Grid>
+
+                        <TextBlock x:Name="AudioDiscoveryStatus" Grid.Row="2" Text="Looking for audio devices…" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,4,0,8" TextWrapping="Wrap" />
+
+                        <Grid Grid.Row="3" Margin="0,6,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Border Background="{DynamicResource PaleMintBrush}" CornerRadius="14" Padding="15">
+                                <StackPanel>
+                                    <TextBlock Text="VOICE" Foreground="{DynamicResource AccentGreenBrush}" FontSize="11" FontWeight="Bold" />
+                                    <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Microphone level" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" /><TextBlock x:Name="VoiceGainValue" Grid.Column="1" Text="100%" Foreground="{DynamicResource SecondaryTextBrush}" /></Grid>
+                                    <Slider x:Name="VoiceGainSlider" Minimum="0" Maximum="200" Value="100" TickFrequency="10" ValueChanged="MixerGainSlider_ValueChanged" PreviewMouseLeftButtonUp="MixerGainSlider_MouseLeftButtonUp" KeyUp="MixerGainSlider_KeyUp" AutomationProperties.Name="Microphone voice volume" Margin="0,5,0,3" />
+                                    <TextBlock Text="Live voice level" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" Margin="0,7,0,3" />
+                                    <ProgressBar x:Name="VoiceLevelMeter" Minimum="0" Maximum="100" Height="8" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Background="{DynamicResource SubtleBlueBrush}" CornerRadius="14" Padding="15">
+                                <StackPanel>
+                                    <TextBlock Text="MUSIC" Foreground="{DynamicResource AccentBlueBrush}" FontSize="11" FontWeight="Bold" />
+                                    <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Browser music level" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" /><TextBlock x:Name="MusicGainValue" Grid.Column="1" Text="100%" Foreground="{DynamicResource SecondaryTextBrush}" /></Grid>
+                                    <Slider x:Name="MusicGainSlider" Minimum="0" Maximum="200" Value="100" TickFrequency="10" ValueChanged="MixerGainSlider_ValueChanged" PreviewMouseLeftButtonUp="MixerGainSlider_MouseLeftButtonUp" KeyUp="MixerGainSlider_KeyUp" AutomationProperties.Name="Music volume" Margin="0,5,0,3" />
+                                    <TextBlock Text="Live music level" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" Margin="0,7,0,3" />
+                                    <ProgressBar x:Name="MusicLevelMeter" Minimum="0" Maximum="100" Height="8" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="4" Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="15">
+                                <StackPanel>
+                                    <TextBlock Text="MIXED OUTPUT" Foreground="{DynamicResource AccentGreenBrush}" FontSize="11" FontWeight="Bold" />
+                                    <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="To virtual cable" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" /><TextBlock x:Name="MasterGainValue" Grid.Column="1" Text="100%" Foreground="{DynamicResource SecondaryTextBrush}" /></Grid>
+                                    <Slider x:Name="MasterGainSlider" Minimum="0" Maximum="200" Value="100" TickFrequency="10" ValueChanged="MixerGainSlider_ValueChanged" PreviewMouseLeftButtonUp="MixerGainSlider_MouseLeftButtonUp" KeyUp="MixerGainSlider_KeyUp" AutomationProperties.Name="Combined output volume" Margin="0,5,0,3" />
+                                    <TextBlock Text="Live mixed level" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" Margin="0,7,0,3" />
+                                    <ProgressBar x:Name="OutputLevelMeter" Minimum="0" Maximum="100" Height="8" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Grid Grid.Row="4" Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock x:Name="AudioRoutingStatus" Text="Sharing is stopped. Choose your mic and virtual cable output." Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0" />
+                            <Button x:Name="StartAudioRoutingButton" Grid.Column="1" Content="Start sharing" Click="StartAudioRouting_Click" IsEnabled="False" Background="{DynamicResource PaleMintBrush}" Margin="0,0,6,0" AutomationProperties.Name="Start mixing voice and music to the call output" />
+                            <Button x:Name="StopAudioRoutingButton" Grid.Column="2" Content="Stop" Click="StopAudioRouting_Click" IsEnabled="False" AutomationProperties.Name="Stop microphone and music routing" />
+                        </Grid>
+
+                        <Border Grid.Row="5" Background="{DynamicResource SubtleBlueBrush}" CornerRadius="12" Padding="12" Margin="0,12,0,0">
+                            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Text="In Discord or WhatsApp, choose the matching virtual cable recording device (often CABLE Output) as your microphone. This app sends only the mix to the cable playback side (often CABLE Input). Use headphones to avoid your speakers re-entering the microphone." />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border x:Name="SettingsPanel" Background="{DynamicResource SurfaceBrush}" CornerRadius="18" Padding="28" Visibility="Collapsed">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                        <TextBlock Text="PREFERENCES &amp; PRIVACY" Foreground="{DynamicResource AccentGreenBrush}" FontSize="11" FontWeight="Bold" /><TextBlock Text="Settings" Foreground="{DynamicResource MainTextBrush}" FontSize="28" FontWeight="SemiBold" Margin="0,5,0,0" />
+                        <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="17" Margin="0,20,0,10"><StackPanel>
+                            <TextBlock Text="Appearance" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,8" />
+                            <CheckBox x:Name="DarkThemeCheckBox" Content="Use dark theme" Foreground="{DynamicResource SecondaryTextBrush}" Checked="PreferencesChanged" Unchecked="PreferencesChanged" Padding="2,6" />
+                            <CheckBox x:Name="AlwaysOnTopCheckBox" Content="Keep this window above other windows" Foreground="{DynamicResource SecondaryTextBrush}" Checked="PreferencesChanged" Unchecked="PreferencesChanged" Padding="2,6" />
+                            <Button Content="Open compact window" Click="ToggleCompactMode_Click" HorizontalAlignment="Left" Background="{DynamicResource SubtleBlueBrush}" Margin="0,7,0,0" />
+                        </StackPanel></Border>
+                        <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="17" Margin="0,0,0,10"><StackPanel>
+                            <TextBlock Text="Quick mute shortcuts" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,5" />
+                            <TextBlock Text="Global shortcuts work when X-TREME PLAY'S is in the background. Use Ctrl or Alt with another key." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <TextBlock Text="Microphone mute" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" />
+                                <Button x:Name="VoiceMuteHotkeyButton" Grid.Column="1" Content="Ctrl+Alt+M" Click="CaptureVoiceMuteHotkey_Click" Padding="12,6" AutomationProperties.Name="Change microphone mute keyboard shortcut" />
+                                <TextBlock Grid.Row="1" Text="Music mute" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,8,0,0" />
+                                <Button x:Name="MusicMuteHotkeyButton" Grid.Row="1" Grid.Column="1" Content="Ctrl+Alt+U" Click="CaptureMusicMuteHotkey_Click" Padding="12,6" Margin="0,8,0,0" AutomationProperties.Name="Change music mute keyboard shortcut" />
+                            </Grid>
+                            <TextBlock x:Name="MuteHotkeyStatus" Text="Shortcuts are global. If another app uses one, choose a different combination." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0" />
+                        </StackPanel></Border>
+                        <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="17" Margin="0,0,0,10"><StackPanel>
+                            <TextBlock Text="Browser data" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,5" />
+                            <TextBlock Text="Cookies, website storage, and cache are stored separately from app preferences. Clearing them signs you out of websites." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                            <Button Content="Clear browser data…" Click="ClearBrowserData_Click" HorizontalAlignment="Left" />
+                        </StackPanel></Border>
+                        <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="17"><StackPanel>
+                            <TextBlock Text="Application data" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,5" />
+                            <TextBlock x:Name="DataLocationText" Text="" Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                            <Button Content="Reset app preferences…" Click="ResetPreferences_Click" HorizontalAlignment="Left" />
+                        </StackPanel></Border>
+                    </StackPanel></ScrollViewer>
+                </Border>
+
+                <Border x:Name="AboutPanel" Background="{DynamicResource SurfaceBrush}" CornerRadius="18" Padding="32" Visibility="Collapsed">
+                    <StackPanel VerticalAlignment="Center" MaxWidth="620" HorizontalAlignment="Center">
+                        <Image Source="/Assets/BrandLogo.png" Width="64" Height="64" Stretch="Uniform" HorizontalAlignment="Left" AutomationProperties.Name="X-TREME PLAY'S logo" />
+                        <TextBlock Text="X-TREME PLAY'S" Foreground="{DynamicResource MainTextBrush}" FontSize="28" FontWeight="SemiBold" Margin="0,18,0,0" />
+                        <TextBlock Text="Your Music. Your Space. Your Play." Foreground="{DynamicResource AccentGreenBrush}" FontSize="15" Margin="0,4,0,0" />
+                        <TextBlock x:Name="AboutVersionText" Text="X-TREME CORPORATION" Foreground="{DynamicResource MutedTextBrush}" Margin="0,18,0,0" />
+                        <TextBlock Text="Updates are checked automatically and installed when you next open the app." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <TextBlock Text="X-TREME PLAY'S is a Windows music companion. Music websites provide playback, accounts, and their own player controls. Browser runtime availability is required. When you press Start sharing, the app mixes its browser audio with your chosen microphone and sends the mix to a virtual audio cable." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,16,0,0" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <Border x:Name="FooterPanel" Grid.Row="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="16" Padding="14,10" Margin="0,16,0,0">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Border Width="32" Height="32" CornerRadius="10" Background="{DynamicResource PaleMintBrush}" Margin="0,0,10,0"><TextBlock Text="♫" Foreground="{DynamicResource AccentGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><StackPanel><TextBlock Text="Playback handled by the music website" Foreground="{DynamicResource MainTextBrush}" FontSize="12" FontWeight="SemiBold" /><TextBlock Text="Use each service's own player controls; app-level track control is unavailable." Foreground="{DynamicResource MutedTextBrush}" FontSize="10" /></StackPanel></StackPanel>
+                <TextBlock x:Name="StatusText" Grid.Column="1" Text="Ready" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
