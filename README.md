@@ -6,11 +6,13 @@ X-TREME PLAY'S is a Windows music companion with an embedded WebView2 browser an
 
 ## Install
 
-Download **`XtremePlays-<version>-Full-Setup.exe`** from the repository's [GitHub Releases](https://github.com/xtremecorporation/XtremePlays/releases). This integrated setup includes the app and the unchanged official VB-CABLE package. It checks for the driver first and asks Windows for administrator approval only if the driver must be installed or an older system-wide X-TREME PLAY'S installation must be migrated.
+Download **`XtremePlays-<version>-Full-Setup.exe`** from the repository's [GitHub Releases](https://github.com/xtremecorporation/XtremePlays/releases). This integrated setup includes the app and the unchanged official VB-CABLE package. VB-CABLE installation is selectable; administrator approval is requested only when the driver needs installation or an older system-wide X-TREME PLAY'S installation must be migrated. The app still installs if VB-CABLE is skipped or needs a Windows restart.
 
-The app is installed for the current Windows account under `%LOCALAPPDATA%\XtremePlays`. The setup also installs Microsoft's WebView2 Runtime from Microsoft if it is missing. Internet is needed for that runtime step and for update checks.
+The app is installed for the current Windows account under `%LOCALAPPDATA%\XtremePlays`, with Start menu and optional desktop shortcuts. Windows lists it in **Settings → Apps → Installed apps**, where it can be uninstalled normally. Uninstalling the app keeps its local settings/browser data and leaves VB-CABLE installed because other apps may use that system-wide driver. The setup also installs Microsoft's WebView2 Runtime from Microsoft if it is missing. Internet is needed for that runtime step and for update checks. Setup can launch the app when installation finishes.
 
 The app checks for a stable GitHub update once per day, downloads it in the background, then applies it automatically the next time the app opens. App updates do not reinstall VB-CABLE and do not require admin approval. If a check cannot reach GitHub, the app continues to work and tries again later.
+
+Only one X-TREME PLAY'S window runs per Windows user session. Opening the app again brings the existing window forward.
 
 Users of version 1.2.2 or earlier must run the new full setup once to move from the old Program Files installation to the updater-managed per-user installation. Their bookmarks, settings, WebView2 sessions, and VB-CABLE installation are preserved. After that one-time move, later app updates are automatic.
 
@@ -25,11 +27,11 @@ Build the self-contained app payload and the optional Velopack installer:
 ```powershell
 ./packaging/publish-velopack.ps1
 dotnet tool install --global vpk --version 1.2.161
-vpk pack --packId XtremePlays --packVersion 1.3.0 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
+vpk pack --packId XtremePlays --packVersion 1.3.1 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
 ./packaging/build-installer.ps1
 ```
 
-The integrated setup is written to `artifacts/XtremePlays-1.3.0-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
+The integrated setup is written to `artifacts/XtremePlays-1.3.1-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
 
 ## Publish an update with GitHub Actions
 

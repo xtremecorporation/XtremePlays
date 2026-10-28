@@ -12,9 +12,23 @@ public partial class App : Application
         {
             try
             {
-                InstallerOperations.InstallDriverIfNeeded();
+                var driverRequested = e.Args.Any(argument => string.Equals(argument, "--install-driver", StringComparison.OrdinalIgnoreCase));
+                var driverReady = !driverRequested;
+                if (driverRequested)
+                {
+                    try
+                    {
+                        driverReady = InstallerOperations.InstallDriverIfNeeded() is null;
+                    }
+                    catch
+                    {
+                        // The app can still be installed; setup will explain that audio sharing needs driver attention.
+                        driverReady = false;
+                    }
+                }
+
                 InstallerOperations.RemoveLegacyMachineInstall();
-                Shutdown(0);
+                Shutdown(driverReady ? 0 : 10);
             }
             catch (Exception exception)
             {

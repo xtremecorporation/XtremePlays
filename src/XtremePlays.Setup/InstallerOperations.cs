@@ -14,11 +14,12 @@ internal static class InstallerOperations
     private const string DriverServiceRegistryPath = @"SYSTEM\CurrentControlSet\Services\VBAudioVACMME";
     private const string VbAudioSigningCertificateThumbprint = "A77952D93229D0EC36E2543081EEA7D125732B9C";
 
-    public static bool RequiresElevation => !IsDriverServicePresent() || IsLegacyMachineInstallPresent();
+    public static bool RequiresElevation(bool installDriver) =>
+        (installDriver && !IsDriverServicePresent()) || IsLegacyMachineInstallPresent();
 
-    public static void InstallDriverIfNeeded()
+    public static string? InstallDriverIfNeeded()
     {
-        if (IsDriverServicePresent()) return;
+        if (IsDriverServicePresent()) return null;
 
         var temporaryRoot = Path.Combine(Path.GetTempPath(), $"XtremePlays-VBCABLE-{Guid.NewGuid():N}");
         try
@@ -42,9 +43,11 @@ internal static class InstallerOperations
             driverSetup.WaitForExit();
 
             if (driverSetup.ExitCode != 0 && !IsDriverServicePresent())
-                throw new InvalidOperationException($"The included VB-CABLE installer returned code {driverSetup.ExitCode}.");
+                return $"VB-CABLE setup returned code {driverSetup.ExitCode}.";
             if (!IsDriverServicePresent())
-                throw new InvalidOperationException("Windows did not register the VB-CABLE driver. Restart Windows if the driver installer requested it, then run this setup again.");
+                return "Windows has not registered the VB-CABLE driver yet. It may need a restart.";
+
+            return null;
         }
         finally
         {
@@ -70,7 +73,7 @@ internal static class InstallerOperations
         key.DeleteSubKeyTree(UninstallKey, throwOnMissingSubKey: false);
     }
 
-    private static bool IsLegacyMachineInstallPresent()
+    public static bool IsLegacyMachineInstallPresent()
     {
         if (Directory.Exists(GetLegacyInstallDirectory())) return true;
         try
@@ -88,7 +91,7 @@ internal static class InstallerOperations
     private static string GetLegacyInstallDirectory() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), ProductName);
 
-    private static bool IsDriverServicePresent()
+    public static bool IsDriverServicePresent()
     {
         try
         {

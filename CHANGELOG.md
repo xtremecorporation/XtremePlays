@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1
+
+- Fix app startup so the main window opens reliably after install and when launched from its shortcuts.
+- Enforce one running app window per Windows user session; opening the app again activates the existing window.
+- Make the integrated setup a single guided window, with launch-after-install and an app-only install option when VB-CABLE is skipped or needs a restart.
+- Keep the integrated per-user Windows install and Apps settings uninstaller, with clearer driver setup status.
+
 ## 1.3.0
 
 - Add automatic stable update checks and background downloads from GitHub Releases; updates apply on the next app launch.

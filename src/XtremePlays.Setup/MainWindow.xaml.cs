@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.ComponentModel;
 using System.Security.Cryptography.X509Certificates;
 using System.Windows;
 using System.Windows.Navigation;
@@ -13,9 +14,10 @@ namespace XtremePlays.Setup;
 public partial class MainWindow : Window
 {
     private const string ProductName = "X-TREME PLAY'S";
-    private const string DriverServiceRegistryPath = @"SYSTEM\CurrentControlSet\Services\VBAudioVACMME";
     private const string WebViewRuntimeKey = @"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
     private bool _isInstalling;
+    private bool _driverReady = true;
+    private bool _driverInstallationRequested;
 
     private string InstallDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XtremePlays");
     private string DesktopShortcutPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), $"{ProductName}.lnk");
@@ -28,7 +30,13 @@ public partial class MainWindow : Window
     }
 
     private void DonationNoticeAccepted_Click(object sender, RoutedEventArgs e) =>
-        InstallButton.IsEnabled = DonationNoticeAccepted.IsChecked == true;
+        UpdateInstallButtonState();
+
+    private void InstallAudioDriverCheckBox_Click(object sender, RoutedEventArgs e) =>
+        UpdateInstallButtonState();
+
+    private void UpdateInstallButtonState() =>
+        InstallButton.IsEnabled = DonationNoticeAccepted.IsChecked == true || InstallAudioDriverCheckBox.IsChecked != true;
 
     private void OpenLink_Click(object sender, RequestNavigateEventArgs e)
     {
@@ -48,19 +56,36 @@ public partial class MainWindow : Window
         _isInstalling = true;
         InstallButton.IsEnabled = false;
         CloseButton.IsEnabled = false;
+        _driverReady = InstallerOperations.IsDriverServicePresent();
+        _driverInstallationRequested = InstallAudioDriverCheckBox.IsChecked == true;
         try
         {
             if (Process.GetProcessesByName("XtremePlays").Length > 0)
                 throw new InvalidOperationException("Please close X-TREME PLAY'S and select Install again.");
 
-            if (InstallerOperations.RequiresElevation)
+            var installDriver = InstallAudioDriverCheckBox.IsChecked == true && !InstallerOperations.IsDriverServicePresent();
+            var legacyInstallPresent = InstallerOperations.IsLegacyMachineInstallPresent();
+            if (InstallerOperations.RequiresElevation(installDriver))
             {
-                StatusText.Text = "Windows will ask for administrator permission only to install VB-CABLE or migrate the previous installation…";
-                await RunElevatedInstallComponentsAsync();
+                StatusText.Text = installDriver
+                    ? "Windows will ask for permission to install VB-CABLE. You can skip it and still install the app."
+                    : "Windows will ask for permission to move the previous system-wide installation…";
+                try
+                {
+                    var elevatedExitCode = await RunElevatedInstallComponentsAsync(installDriver);
+                    if (elevatedExitCode is not 0 and not 10)
+                        throw new InvalidOperationException("Windows could not complete the driver installation or previous-version migration.");
+                    if (elevatedExitCode == 10)
+                        _driverReady = false;
+                }
+                catch (Win32Exception) when (installDriver && !legacyInstallPresent)
+                {
+                    // Declining the optional driver permission must not block the user-level app install.
+                    _driverReady = false;
+                }
             }
 
-            if (!IsDriverServicePresent())
-                throw new InvalidOperationException("Windows did not register the VB-CABLE driver. Restart Windows if the driver installer requested it, then run this setup again.");
+            _driverReady &= InstallerOperations.IsDriverServicePresent();
 
             if (!IsWebViewRuntimeInstalled())
             {
@@ -74,7 +99,11 @@ public partial class MainWindow : Window
             if (DesktopShortcutCheckBox.IsChecked != true)
                 TryDeleteFile(DesktopShortcutPath);
 
-            StatusText.Text = "Setup complete. Your app will check GitHub for updates automatically.";
+            StatusText.Text = _driverReady
+                ? "Setup complete. The app is installed and will check GitHub for updates automatically."
+                : _driverInstallationRequested
+                    ? "App installed. VB-CABLE is not ready yet; restart Windows if requested, then run Full Setup again to retry."
+                    : "App installed. VB-CABLE was skipped. Run Full Setup again and select it if you want audio sharing.";
             InstallButton.Content = "Finish";
             InstallButton.IsEnabled = true;
             CloseButton.IsEnabled = true;
@@ -93,7 +122,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RunElevatedInstallComponentsAsync()
+    private async Task<int> RunElevatedInstallComponentsAsync(bool installDriver)
     {
         var executable = Environment.ProcessPath;
         if (string.IsNullOrWhiteSpace(executable))
@@ -101,14 +130,13 @@ public partial class MainWindow : Window
 
         using var helper = Process.Start(new ProcessStartInfo(executable)
         {
-            Arguments = "--elevated-install-components",
+            Arguments = installDriver ? "--elevated-install-components --install-driver" : "--elevated-install-components",
             UseShellExecute = true,
             Verb = "runas"
         }) ?? throw new InvalidOperationException("Could not request Windows administrator permission.");
 
         await Task.Run(helper.WaitForExit);
-        if (helper.ExitCode != 0)
-            throw new InvalidOperationException("The driver installation or previous-version migration did not finish. Complete the Windows prompt, restart if requested, and retry setup.");
+        return helper.ExitCode;
     }
 
     private async Task InstallApplicationFilesAsync()
@@ -122,7 +150,11 @@ public partial class MainWindow : Window
             using (var output = File.Create(setupPath))
                 await resource.CopyToAsync(output);
 
-            using var appSetup = Process.Start(new ProcessStartInfo(setupPath) { UseShellExecute = true })
+            using var appSetup = Process.Start(new ProcessStartInfo(setupPath)
+            {
+                Arguments = "--silent",
+                UseShellExecute = true
+            })
                 ?? throw new InvalidOperationException("Could not launch the app installer.");
             await Task.Run(() =>
             {
@@ -207,19 +239,6 @@ public partial class MainWindow : Window
             throw new InvalidOperationException("The runtime installer signer did not match Microsoft Corporation. The installer was not launched.");
     }
 
-    private static bool IsDriverServicePresent()
-    {
-        try
-        {
-            using var serviceKey = Registry.LocalMachine.OpenSubKey(DriverServiceRegistryPath, writable: false);
-            return serviceKey is not null;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     private static Stream GetResource(string resourceName) =>
         Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)
         ?? throw new InvalidOperationException($"Setup file is missing an embedded resource: {resourceName}.");
@@ -236,7 +255,23 @@ public partial class MainWindow : Window
         catch { }
     }
 
-    private void FinishButton_Click(object sender, RoutedEventArgs e) => Close();
+    private void FinishButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (LaunchAfterInstallCheckBox.IsChecked == true)
+        {
+            try
+            {
+                var appPath = Path.Combine(InstallDirectory, "XtremePlays.exe");
+                Process.Start(new ProcessStartInfo(appPath) { UseShellExecute = true });
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show($"The app was installed, but could not be opened automatically. You can start it from the desktop or Start menu.\n\n{exception.Message}", ProductName, MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        Close();
+    }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
