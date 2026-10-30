@@ -95,7 +95,7 @@ public partial class ShellWindow : Window
             : $"Private local data folder: {AppPaths.DataDirectory}";
         _settingsLoaded = true;
         ApplyTheme(_preferences.DarkTheme);
-        StartUpdateCheckIfDue();
+        StartUpdateCheckOnLaunch();
         InitializeMuteHotkeys();
         UpdateMuteButtons();
         if (warning is not null)
@@ -106,34 +106,44 @@ public partial class ShellWindow : Window
         await InitializeBrowserAsync();
     }
 
-    private void StartUpdateCheckIfDue()
-    {
-        var now = DateTimeOffset.UtcNow;
-        if (_preferences.LastUpdateCheckUtc is { } lastCheck && now - lastCheck < TimeSpan.FromHours(24))
-        {
-            return;
-        }
+    private void StartUpdateCheckOnLaunch() => _ = CheckAndInstallAvailableUpdateAsync();
 
-        _preferences.LastUpdateCheckUtc = now;
-        _ = _settingsStore.SaveAsync(_preferences);
-        _ = CheckAndDownloadUpdateAsync();
-    }
-
-    private async Task CheckAndDownloadUpdateAsync()
+    private async Task CheckAndInstallAvailableUpdateAsync()
     {
         try
         {
-            var availableVersion = await _updateService.CheckAndDownloadAsync();
-            if (availableVersion is null || _isFinishingClose) return;
+            var update = await _updateService.CheckAndDownloadAsync();
+            if (update is null || _isFinishingClose) return;
 
-            SetStatus($"Version {availableVersion} is ready and will install automatically the next time you open X-TREME PLAY'S.");
+            SetStatus($"Installing version {update.Version} now. X-TREME PLAY'S will reopen automatically.");
+            if (!_compactMode)
+            {
+                _preferences.WindowWidth = Width;
+                _preferences.WindowHeight = Height;
+                _preferences.WindowLeft = Left;
+                _preferences.WindowTop = Top;
+            }
+            else
+            {
+                _preferences.WindowWidth = _normalWidth;
+                _preferences.WindowHeight = _normalHeight;
+                _preferences.AlwaysOnTop = _topmostBeforeCompact;
+            }
+
+            if (Browser.Source is not null) _preferences.LastUrl = Browser.Source.ToString();
+            _preferences.Bookmarks = _bookmarks.Select(bookmark => new Bookmark { Title = bookmark.Title, Url = bookmark.Url }).ToList();
+            await SavePreferencesSafelyAsync();
+
+            _audioMeterTimer.Stop();
+            _audioMixingRouter.Stop();
+            _isFinishingClose = true;
+            await Task.Delay(500);
+            _updateService.ApplyUpdatesAndRestart(update);
         }
-        catch (OperationCanceledException)
+        catch (Exception exception)
         {
-        }
-        catch (Exception)
-        {
-            // Update checks are best-effort; a GitHub or network issue must not interrupt music playback.
+            _isFinishingClose = false;
+            SetStatus($"Could not check or apply updates: {exception.Message}. The app will retry next time.", isError: true);
         }
     }
 

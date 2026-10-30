@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.4
+
+- Check for updates whenever the app opens, with no 24-hour delay.
+- Automatically restart and apply downloaded updates immediately.
+
 ## 1.3.3
 
 - Add an About-page developer card for Abu Rayhan, with his circular profile photo and direct Facebook, personal website, and GitHub links.

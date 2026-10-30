@@ -10,7 +10,7 @@ Download **`XtremePlays-<version>-Full-Setup.exe`** from the repository's [GitHu
 
 The app is installed for the current Windows account under `%LOCALAPPDATA%\XtremePlays`, with Start menu and optional desktop shortcuts. Windows lists it in **Settings → Apps → Installed apps**, where it can be uninstalled normally. Uninstalling the app keeps its local settings/browser data and leaves VB-CABLE installed because other apps may use that system-wide driver. The setup also installs Microsoft's WebView2 Runtime from Microsoft if it is missing. Internet is needed for that runtime step and for update checks. Setup can launch the app when installation finishes.
 
-The app checks for a stable GitHub update once per day, downloads it in the background, then applies it automatically the next time the app opens. App updates do not reinstall VB-CABLE and do not require admin approval. If a check cannot reach GitHub, the app continues to work and tries again later.
+The app checks for a stable GitHub update every time it opens. If one is available, it downloads and applies it automatically, then reopens. App updates do not reinstall VB-CABLE and do not require admin approval. If a check cannot reach GitHub, the app continues to work and tries again the next time it opens.
 
 Only one X-TREME PLAY'S window runs per Windows user session. Opening the app again brings the existing window forward.
 
@@ -27,19 +27,19 @@ Build the self-contained app payload and the optional Velopack installer:
 ```powershell
 ./packaging/publish-velopack.ps1
 dotnet tool install --global vpk --version 1.2.161
-vpk pack --packId XtremePlays --packVersion 1.3.3 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
+vpk pack --packId XtremePlays --packVersion 1.3.4 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
 ./packaging/build-installer.ps1
 ```
 
-The integrated setup is written to `artifacts/XtremePlays-1.3.3-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
+The integrated setup is written to `artifacts/XtremePlays-1.3.4-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
 
 ## Publish an update with GitHub Actions
 
-The `Windows build` workflow builds app changes on pushes and pull requests to `main`. The `Build and publish Windows release` workflow runs only for a version tag such as `v1.3.3`. Before tagging a release:
+The `Windows build` workflow builds app changes on pushes and pull requests to `main`. The `Build and publish Windows release` workflow runs only for a version tag such as `v1.3.4`. Before tagging a release:
 
 1. Update the app and setup `<Version>` values to the same `x.y.z` version.
 2. Add a matching section at the top of `CHANGELOG.md`.
-3. Push the version tag, for example `git tag v1.3.3` followed by `git push origin v1.3.3`.
+3. Push the version tag, for example `git tag v1.3.4` followed by `git push origin v1.3.4`.
 
 GitHub Actions builds the app, creates Velopack full/delta packages, builds the integrated driver setup, uploads all release assets to a draft, and publishes only after the full setup is attached. No personal access token or signing secret is required; the workflow uses its repository-scoped `GITHUB_TOKEN`. The repository must be public for anonymous clients to receive updates.
 

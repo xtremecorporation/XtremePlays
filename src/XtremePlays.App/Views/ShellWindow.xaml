@@ -264,7 +264,7 @@
                             <TextBlock Text="X-TREME PLAY'S" Foreground="{DynamicResource MainTextBrush}" FontSize="28" FontWeight="SemiBold" Margin="0,18,0,0" />
                             <TextBlock Text="Your Music. Your Space. Your Play." Foreground="{DynamicResource AccentGreenBrush}" FontSize="15" Margin="0,4,0,0" />
                             <TextBlock x:Name="AboutVersionText" Text="X-TREME CORPORATION" Foreground="{DynamicResource MutedTextBrush}" Margin="0,18,0,0" />
-                            <TextBlock Text="Updates are checked automatically and installed when you next open the app." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                            <TextBlock Text="The app checks for updates every time it opens. Available updates download automatically and install as the app restarts." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0" />
                             <TextBlock Text="X-TREME PLAY'S is a Windows music companion. Music websites provide playback, accounts, and their own player controls. Browser runtime availability is required. When you press Start sharing, the app mixes its browser audio with your chosen microphone and sends the mix to a virtual audio cable." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,16,0,0" />
 
                             <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="16" Padding="18" Margin="0,24,0,0">
