@@ -22,6 +22,15 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build Brave ad-block engine
+        shell: pwsh
+        run: ./packaging/build-adblock.ps1
+
       - name: Build the Windows app
         shell: pwsh
         run: |

@@ -1,0 +1,17 @@
+[package]
+name = "xtreme_adblock_bridge"
+version = "1.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "xtreme_adblock_bridge"
+crate-type = ["cdylib"]
+
+[dependencies]
+adblock = { version = "=0.13.5", default-features = false, features = ["embedded-domain-resolver", "full-regex-handling"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

@@ -1,0 +1,7 @@
+Brave adblock-rust
+
+X-TREME PLAY'S includes the unmodified Brave adblock-rust 0.13.5 library as a native Windows DLL. The library is licensed under the Mozilla Public License 2.0. Its source is available from the pinned dependency in native/xtreme_adblock_bridge/Cargo.toml and at https://github.com/brave/adblock-rust.
+
+This application is not the Brave browser and does not include Brave's Chromium browser, browser UI, or complete Brave Shields feature set. The library is used locally to evaluate web requests against the filter lists that the user enables in app Settings.
+
+The full MPL 2.0 text is in MOZILLA-PUBLIC-LICENSE-2.0.txt.

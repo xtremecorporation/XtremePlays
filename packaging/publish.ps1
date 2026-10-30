@@ -15,6 +15,8 @@ $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:APPDATA = Join-Path $repoRoot '.appdata'
 $env:LOCALAPPDATA = Join-Path $repoRoot '.localappdata'
 
+& (Join-Path $PSScriptRoot 'build-adblock.ps1')
+
 dotnet restore $project --configfile (Join-Path $repoRoot 'NuGet.Config') -r win-x64 --ignore-failed-sources
 if ($LASTEXITCODE -ne 0) { throw 'Package restore failed.' }
 
@@ -23,6 +25,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'portable.flag') -Destination (Join-Path $stagingDir 'portable.flag') -Force
 Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination (Join-Path $stagingDir 'README.txt') -Force
+$thirdPartyDir = Join-Path $stagingDir 'ThirdParty'
+New-Item -ItemType Directory -Path $thirdPartyDir -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'third-party\BRAVE-ADBLOCK-NOTICE.txt') -Destination (Join-Path $thirdPartyDir 'BRAVE-ADBLOCK-NOTICE.txt') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'third-party\MOZILLA-PUBLIC-LICENSE-2.0.txt') -Destination (Join-Path $thirdPartyDir 'MOZILLA-PUBLIC-LICENSE-2.0.txt') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'third-party\EASYLIST-FILTER-LISTS-NOTICE.txt') -Destination (Join-Path $thirdPartyDir 'EASYLIST-FILTER-LISTS-NOTICE.txt') -Force
 
 New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
 New-Item -ItemType Directory -Path $publishDir -Force | Out-Null

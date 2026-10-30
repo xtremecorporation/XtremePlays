@@ -11,7 +11,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <DebugType>embedded</DebugType>
-    <Version>1.3.4</Version>
+    <Version>1.4.0</Version>
     <ApplicationIcon>Assets\XtremePlays.ico</ApplicationIcon>
     <StartupObject>XtremePlays.App.Program</StartupObject>
   </PropertyGroup>
@@ -31,6 +31,15 @@
     <Resource Include="Assets\BrandLogo.png" />
     <Resource Include="Assets\DeveloperAvatar.jpg" />
     <Resource Include="Assets\XtremePlays.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\native\xtreme_adblock_bridge\target\x86_64-pc-windows-msvc\release\xtreme_adblock_bridge.dll"
+             Condition="Exists('..\..\native\xtreme_adblock_bridge\target\x86_64-pc-windows-msvc\release\xtreme_adblock_bridge.dll')">
+      <Link>xtreme_adblock_bridge.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

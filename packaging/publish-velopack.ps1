@@ -4,6 +4,9 @@ $project = Join-Path $repoRoot 'src\XtremePlays.App\XtremePlays.App.csproj'
 $publishDir = Join-Path $env:TEMP "XtremePlays-vpk-publish-$PID"
 $packageInputDir = Join-Path $repoRoot '.installer-staging\velopack-app'
 $noticeFile = Join-Path $PSScriptRoot 'third-party\VB-CABLE-NOTICE.txt'
+$adBlockNoticeFile = Join-Path $PSScriptRoot 'third-party\BRAVE-ADBLOCK-NOTICE.txt'
+$adBlockLicenseFile = Join-Path $PSScriptRoot 'third-party\MOZILLA-PUBLIC-LICENSE-2.0.txt'
+$filterListNoticeFile = Join-Path $PSScriptRoot 'third-party\EASYLIST-FILTER-LISTS-NOTICE.txt'
 $projectMetadata = [xml](Get-Content -LiteralPath $project -Raw)
 $version = [string]$projectMetadata.Project.PropertyGroup.Version
 if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Set a valid semantic version in the app project before packaging.' }
@@ -30,6 +33,8 @@ $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:APPDATA = Join-Path $repoRoot '.appdata'
 $env:LOCALAPPDATA = Join-Path $repoRoot '.localappdata'
 
+& (Join-Path $PSScriptRoot 'build-adblock.ps1')
+
 dotnet restore $project --configfile (Join-Path $repoRoot 'NuGet.Config') -r win-x64 --ignore-failed-sources
 if ($LASTEXITCODE -ne 0) { throw 'Package restore failed.' }
 
@@ -46,6 +51,10 @@ if (Test-Path -LiteralPath (Join-Path $publishFullPath 'portable.flag')) {
 $thirdPartyDir = Join-Path $publishFullPath 'ThirdParty'
 New-Item -ItemType Directory -Path $thirdPartyDir -Force | Out-Null
 Copy-Item -LiteralPath $noticeFile -Destination (Join-Path $thirdPartyDir 'VB-CABLE-NOTICE.txt') -Force
+Copy-Item -LiteralPath $adBlockNoticeFile -Destination (Join-Path $thirdPartyDir 'BRAVE-ADBLOCK-NOTICE.txt') -Force
+Copy-Item -LiteralPath $adBlockLicenseFile -Destination (Join-Path $thirdPartyDir 'MOZILLA-PUBLIC-LICENSE-2.0.txt') -Force
+Copy-Item -LiteralPath $filterListNoticeFile -Destination (Join-Path $thirdPartyDir 'EASYLIST-FILTER-LISTS-NOTICE.txt') -Force
+Copy-Item -LiteralPath $filterListNoticeFile -Destination (Join-Path $thirdPartyDir 'EASYLIST-FILTER-LISTS-NOTICE.txt') -Force
 Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination (Join-Path $publishFullPath 'README.txt') -Force
 New-Item -ItemType Directory -Path $packageInputFullPath -Force | Out-Null
 Get-ChildItem -LiteralPath $publishFullPath -Force | ForEach-Object {
