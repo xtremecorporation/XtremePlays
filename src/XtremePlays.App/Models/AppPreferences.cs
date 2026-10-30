@@ -14,6 +14,7 @@ public sealed class AppPreferences
     public int VoiceVolumePercent { get; set; } = 100;
     public int MusicVolumePercent { get; set; } = 100;
     public int MasterVolumePercent { get; set; } = 100;
+    public bool AdBlockingEnabled { get; set; }
     public string VoiceMuteHotkey { get; set; } = "Ctrl+Alt+M";
     public string MusicMuteHotkey { get; set; } = "Ctrl+Alt+U";
     public List<Bookmark> Bookmarks { get; set; } = DefaultBookmarks();

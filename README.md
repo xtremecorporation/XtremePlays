@@ -20,18 +20,19 @@ The separate Velopack `XtremePlays-win-Setup.exe` release asset installs or upda
 
 ## Build locally
 
-Requirements: Windows 10 version 2004 (build 19041) or later, x64, and the .NET 10 SDK.
+Requirements: Windows 10 version 2004 (build 19041) or later, x64, the .NET 10 SDK, and Rust stable with the `x86_64-pc-windows-msvc` target (`rustup` from [rustup.rs](https://rustup.rs/)).
 
-Build the self-contained app payload and the optional Velopack installer:
+Build the Brave ad-block engine and self-contained app payload, then create the optional Velopack installer:
 
 ```powershell
+./packaging/build-adblock.ps1
 ./packaging/publish-velopack.ps1
 dotnet tool install --global vpk --version 1.2.161
-vpk pack --packId XtremePlays --packVersion 1.3.4 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
+vpk pack --packId XtremePlays --packVersion 1.4.0 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
 ./packaging/build-installer.ps1
 ```
 
-The integrated setup is written to `artifacts/XtremePlays-1.3.4-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
+The integrated setup is written to `artifacts/XtremePlays-1.4.0-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
 
 ## Publish an update with GitHub Actions
 
@@ -39,7 +40,7 @@ The `Windows build` workflow builds app changes on pushes and pull requests to `
 
 1. Update the app and setup `<Version>` values to the same `x.y.z` version.
 2. Add a matching section at the top of `CHANGELOG.md`.
-3. Push the version tag, for example `git tag v1.3.4` followed by `git push origin v1.3.4`.
+3. Push the version tag, for example `git tag v1.4.0` followed by `git push origin v1.4.0`.
 
 GitHub Actions builds the app, creates Velopack full/delta packages, builds the integrated driver setup, uploads all release assets to a draft, and publishes only after the full setup is attached. No personal access token or signing secret is required; the workflow uses its repository-scoped `GITHUB_TOKEN`. The repository must be public for anonymous clients to receive updates.
 
@@ -57,6 +58,7 @@ The first updater-enabled release is a migration release: existing 1.2.2 install
 - Portable mode and a self-contained x64 app build.
 - Integrated setup that bundles VB-CABLE and migrates the previous system-wide app install without deleting app data.
 - GitHub Releases updates, Windows build/release automation, and weekly Dependabot checks for NuGet and workflow actions.
+- Optional Brave adblock-rust network filtering for the embedded browser, controlled in Settings and backed by the user's local EasyList/EasyPrivacy cache.
 
 ## Developer
 
@@ -70,9 +72,17 @@ X-TREME PLAY'S is developed by **Abu Rayhan**. Find him on [Facebook](https://ww
 - The mixer applies voice/music/master gains and a peak limiter. Headphones help reduce room echo; keep levels below clipping.
 - A successful Windows build does not certify a clean PC install, microphone/cable compatibility, or every provider's behavior. Test those on the target Windows and call-app setup.
 
+## Ad-blocking limitations
+
+- Ad blocking is optional and off by default. When enabled, the Brave adblock-rust network filter engine evaluates WebView2 requests locally against EasyList and EasyPrivacy. The app downloads those public filter lists from their official sources and refreshes them about once a day while the feature is in use; it does not send browsing URLs to an X-TREME PLAY'S server.
+- The app includes network request filtering, not Brave Browser or the complete Brave Shields implementation. Some providers deliver ads from the same hosts and media streams as the requested content, and some ad placements are part of the page itself. Those ads may still appear. Cosmetic hiding and every rule that requires browser-specific script or resource replacement are not guaranteed. Websites can also change or detect filtering, so this feature cannot promise 100% ad removal.
+- A page may break when a required request is blocked. Turn the setting off and reload that page to restore normal requests. When enabling the feature on a page that is already open, reload it if you want newly loaded content to use the rules; current playback is not stopped automatically.
+
 ## VB-CABLE and third-party terms
 
 VB-CABLE is a separate VB-Audio donationware product. The release bundle includes only the unchanged base driver package, identifies VB-Audio as the source, and links to the vendor's [product page](https://vb-cable.com/) and [licensing/donation terms](https://vb-audio.com/Services/licensing.htm). Professional or commercial distribution may require additional VB-Audio licenses. The driver remains installed if X-TREME PLAY'S is uninstalled because other apps may use it. See [`packaging/third-party/VB-CABLE-NOTICE.txt`](packaging/third-party/VB-CABLE-NOTICE.txt).
+
+The Brave adblock-rust library is MPL-2.0 licensed; the app build pins version 0.13.5 and includes the upstream source reference and license in [`packaging/third-party/BRAVE-ADBLOCK-NOTICE.txt`](packaging/third-party/BRAVE-ADBLOCK-NOTICE.txt) and [`packaging/third-party/MOZILLA-PUBLIC-LICENSE-2.0.txt`](packaging/third-party/MOZILLA-PUBLIC-LICENSE-2.0.txt). EasyList and EasyPrivacy are fetched at runtime after opt-in and are not redistributed in the installer. Their maintainers publish their own license terms; see [`packaging/third-party/EASYLIST-FILTER-LISTS-NOTICE.txt`](packaging/third-party/EASYLIST-FILTER-LISTS-NOTICE.txt).
 
 ## Privacy and app data
 

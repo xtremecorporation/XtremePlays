@@ -1,0 +1,8 @@
+EasyList and EasyPrivacy filter lists
+
+The app downloads these lists from their official HTTPS sources only after a user turns on ad blocking:
+
+- https://easylist.to/easylist/easylist.txt
+- https://easylist.to/easylist/easyprivacy.txt
+
+The lists are not bundled with the app. Their authors' filter rules and notices remain intact in the downloaded files. The EasyList project states that these lists are dual licensed under GPL-3.0-or-later or CC BY-SA 3.0-or-later, unless otherwise noted. See https://easylist.to/pages/licence.html and https://easylist.to/ for current terms and attribution.

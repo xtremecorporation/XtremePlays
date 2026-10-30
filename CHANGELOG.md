@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0
+
+- Add optional ad and tracker blocking in Settings, powered by Brave's open-source adblock-rust network filter engine.
+- Download EasyList and EasyPrivacy only when enabled, cache rules locally, and refresh filter lists automatically.
+- Include the native engine and its third-party license notices in Windows and portable builds.
+- Explain that streaming, first-party, and page-integrated ads may remain and that some sites may need filtering disabled.
+
 ## 1.3.4
 
 - Check for updates whenever the app opens, with no 24-hour delay.

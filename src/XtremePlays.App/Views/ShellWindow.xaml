@@ -234,6 +234,13 @@
                             <Button Content="Open compact window" Click="ToggleCompactMode_Click" HorizontalAlignment="Left" Background="{DynamicResource SubtleBlueBrush}" Margin="0,7,0,0" />
                         </StackPanel></Border>
                         <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="17" Margin="0,0,0,10"><StackPanel>
+                            <TextBlock Text="Ad blocking" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,5" />
+                            <TextBlock Text="Use Brave's open-source ad-block filter engine for ads and trackers in the built-in browser. EasyList and EasyPrivacy rules are downloaded only when you enable this setting and then refreshed automatically." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,9" />
+                            <CheckBox x:Name="AdBlockingCheckBox" Content="Enable ad and tracker blocking" Foreground="{DynamicResource SecondaryTextBrush}" Checked="AdBlockingChanged" Unchecked="AdBlockingChanged" Padding="2,6" />
+                            <TextBlock x:Name="AdBlockStatusText" Text="Off. Filter rules download when you turn this on." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0" />
+                            <TextBlock Text="Some in-stream or site-served ads can still appear. Blocking may affect website features; turn it off if a page stops working. Reload the current page to apply the setting to requests already loaded." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
+                        </StackPanel></Border>
+                        <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="17" Margin="0,0,0,10"><StackPanel>
                             <TextBlock Text="Quick mute shortcuts" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,5" />
                             <TextBlock Text="Global shortcuts work when X-TREME PLAY'S is in the background. Use Ctrl or Alt with another key." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>

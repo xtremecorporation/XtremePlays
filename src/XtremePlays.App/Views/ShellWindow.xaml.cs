@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
@@ -34,6 +35,7 @@ public partial class ShellWindow : Window
     private readonly SettingsStore _settingsStore = new();
     private readonly UpdateService _updateService = new();
     private readonly AudioMixingRouter _audioMixingRouter = new();
+    private readonly AdBlockService _adBlockService = new();
     private readonly DispatcherTimer _audioMeterTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly ObservableCollection<Bookmark> _bookmarks = [];
     private AppPreferences _preferences = new();
@@ -46,7 +48,10 @@ public partial class ShellWindow : Window
     private bool _musicMuted;
     private bool _voiceHotkeyRegistered;
     private bool _musicHotkeyRegistered;
+    private bool _adBlockFilterRegistered;
+    private long _blockedAdRequestCount;
     private string? _hotkeyCaptureTarget;
+    private string? _pendingTopLevelNavigationUrl;
     private HwndSource? _windowSource;
     private double _normalWidth;
     private double _normalHeight;
@@ -85,6 +90,7 @@ public partial class ShellWindow : Window
 
         DarkThemeCheckBox.IsChecked = _preferences.DarkTheme;
         AlwaysOnTopCheckBox.IsChecked = _preferences.AlwaysOnTop;
+        AdBlockingCheckBox.IsChecked = _preferences.AdBlockingEnabled;
         VoiceGainSlider.Value = _preferences.VoiceVolumePercent;
         MusicGainSlider.Value = _preferences.MusicVolumePercent;
         MasterGainSlider.Value = _preferences.MasterVolumePercent;
@@ -165,7 +171,17 @@ public partial class ShellWindow : Window
             BrowserUnavailablePanel.Visibility = Visibility.Collapsed;
             Browser.Visibility = Visibility.Visible;
             AppStatusBadge.Text = "Browser ready";
-            SetStatus("Ready. Choose a music service to begin.");
+            if (_preferences.AdBlockingEnabled)
+            {
+                await EnableAdBlockingAsync(savePreference: false);
+            }
+            else
+            {
+                UpdateAdBlockStatusText();
+            }
+            SetStatus(_adBlockService.IsEnabled
+                ? "Ready. Ad and tracker blocking is on for new browser requests."
+                : "Ready. Choose a music service to begin.");
             UpdateNavigationButtons();
         }
         catch (WebView2RuntimeNotFoundException)
@@ -326,6 +342,7 @@ public partial class ShellWindow : Window
 
     private void Browser_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
+        _pendingTopLevelNavigationUrl = e.Uri;
         BrowserLoadingOverlay.Visibility = Visibility.Visible;
         SetStatus("Loading page…");
         UpdateNavigationButtons();
@@ -333,6 +350,7 @@ public partial class ShellWindow : Window
 
     private async void Browser_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
+        _pendingTopLevelNavigationUrl = null;
         BrowserLoadingOverlay.Visibility = Visibility.Collapsed;
         UpdateNavigationButtons();
         if (e.IsSuccess)
@@ -1058,12 +1076,166 @@ public partial class ShellWindow : Window
 
     private void PreferencesChanged(object sender, RoutedEventArgs e)
     {
-        if (!_settingsLoaded) return;
+        if (!_settingsLoaded || _isFinishingClose) return;
         _preferences.DarkTheme = DarkThemeCheckBox.IsChecked == true;
         _preferences.AlwaysOnTop = AlwaysOnTopCheckBox.IsChecked == true;
         Topmost = _preferences.AlwaysOnTop;
         ApplyTheme(_preferences.DarkTheme);
         _ = SavePreferencesSafelyAsync();
+    }
+
+    private async void AdBlockingChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_settingsLoaded || _isFinishingClose) return;
+
+        if (AdBlockingCheckBox.IsChecked == true)
+        {
+            await EnableAdBlockingAsync(savePreference: true);
+            return;
+        }
+
+        DisableAdBlocking();
+        _preferences.AdBlockingEnabled = false;
+        UpdateAdBlockStatusText();
+        SetStatus("Ad and tracker blocking is off.");
+        await SavePreferencesSafelyAsync();
+    }
+
+    private async Task EnableAdBlockingAsync(bool savePreference)
+    {
+        if (_isFinishingClose) return;
+        var wasEnabled = _preferences.AdBlockingEnabled;
+        if (!_browserAvailable)
+        {
+            _preferences.AdBlockingEnabled = false;
+            AdBlockingCheckBox.IsChecked = false;
+            AdBlockStatusText.Text = "The browser is not ready yet.";
+            return;
+        }
+
+        AdBlockingCheckBox.IsEnabled = false;
+        AdBlockStatusText.Text = "Loading local rules or downloading the filter lists…";
+        try
+        {
+            var ruleCount = await _adBlockService.EnableAsync();
+            if (!_adBlockFilterRegistered)
+            {
+                Browser.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All, CoreWebView2WebResourceRequestSourceKinds.All);
+                Browser.CoreWebView2.WebResourceRequested += Browser_WebResourceRequested;
+                _adBlockFilterRegistered = true;
+            }
+
+            _preferences.AdBlockingEnabled = true;
+            AdBlockingCheckBox.IsChecked = true;
+            AdBlockStatusText.Text = $"On · about {ruleCount:N0} network rules loaded · {_blockedAdRequestCount:N0} requests blocked this session.";
+            SetStatus("Ad and tracker blocking is on for new browser requests. Reload the current page if you want to filter its existing content.");
+            if (savePreference || wasEnabled) await SavePreferencesSafelyAsync();
+        }
+        catch (Exception exception)
+        {
+            if (_isFinishingClose) return;
+            UnregisterAdBlockFilter();
+            _adBlockService.Disable();
+            _preferences.AdBlockingEnabled = false;
+            AdBlockingCheckBox.IsChecked = false;
+            var reason = exception is DllNotFoundException or BadImageFormatException
+                ? "The ad-block engine is missing from this app build."
+                : exception is HttpRequestException or TaskCanceledException or IOException
+                    ? "Could not load the filter lists. Check your internet connection and try again."
+                    : "The ad-block engine could not be started.";
+            AdBlockStatusText.Text = reason;
+            SetStatus(reason, isError: true);
+            if (savePreference || wasEnabled) await SavePreferencesSafelyAsync();
+        }
+        finally
+        {
+            AdBlockingCheckBox.IsEnabled = true;
+        }
+    }
+
+    private void DisableAdBlocking()
+    {
+        UnregisterAdBlockFilter();
+        _adBlockService.Disable();
+    }
+
+    private void UnregisterAdBlockFilter()
+    {
+        if (!_adBlockFilterRegistered || !_browserAvailable) return;
+        try
+        {
+            Browser.CoreWebView2.WebResourceRequested -= Browser_WebResourceRequested;
+            Browser.CoreWebView2.RemoveWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All, CoreWebView2WebResourceRequestSourceKinds.All);
+        }
+        catch (InvalidOperationException)
+        {
+            // A WebView that is already shutting down no longer needs an active request filter.
+        }
+        catch (COMException)
+        {
+            // A WebView that is already shutting down no longer needs an active request filter.
+        }
+        finally
+        {
+            _adBlockFilterRegistered = false;
+        }
+    }
+
+    private void Browser_WebResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
+    {
+        try
+        {
+            var request = e.Request;
+            var requestUrl = request.Uri;
+            var sourceUrl = _pendingTopLevelNavigationUrl ?? Browser.Source?.AbsoluteUri ?? requestUrl;
+            if (!_adBlockService.ShouldBlock(requestUrl, sourceUrl, GetAdBlockRequestType(e, requestUrl), request.Method)) return;
+
+            e.Response = Browser.CoreWebView2.Environment.CreateWebResourceResponse(
+                new MemoryStream(), 204, "Blocked", "Content-Length: 0\r\nCache-Control: no-store\r\n");
+            _blockedAdRequestCount++;
+            if (_blockedAdRequestCount == 1 || _blockedAdRequestCount % 10 == 0) UpdateAdBlockStatusText();
+        }
+        catch (Exception)
+        {
+            // A failed filter decision should leave the request untouched.
+        }
+    }
+
+    private string GetAdBlockRequestType(CoreWebView2WebResourceRequestedEventArgs e, string requestUrl) => e.ResourceContext switch
+    {
+        CoreWebView2WebResourceContext.Document => IsCurrentTopLevelRequest(requestUrl) ? "document" : "subdocument",
+        CoreWebView2WebResourceContext.Stylesheet => "stylesheet",
+        CoreWebView2WebResourceContext.Image => "image",
+        CoreWebView2WebResourceContext.Media => "media",
+        CoreWebView2WebResourceContext.Font => "font",
+        CoreWebView2WebResourceContext.Script => "script",
+        CoreWebView2WebResourceContext.XmlHttpRequest or CoreWebView2WebResourceContext.Fetch or CoreWebView2WebResourceContext.EventSource => "xmlhttprequest",
+        CoreWebView2WebResourceContext.CspViolationReport => "csp_report",
+        CoreWebView2WebResourceContext.TextTrack => "media",
+        CoreWebView2WebResourceContext.Websocket => "websocket",
+        CoreWebView2WebResourceContext.Ping => "ping",
+        _ => "other"
+    };
+
+    private bool IsCurrentTopLevelRequest(string requestUrl)
+    {
+        if (Uri.TryCreate(_pendingTopLevelNavigationUrl, UriKind.Absolute, out var pending) &&
+            Uri.TryCreate(requestUrl, UriKind.Absolute, out var requested) &&
+            Uri.Compare(pending, requested, UriComponents.HttpRequestUrl, UriFormat.SafeUnescaped, StringComparison.OrdinalIgnoreCase) == 0)
+        {
+            return true;
+        }
+
+        return Uri.TryCreate(Browser.Source?.AbsoluteUri, UriKind.Absolute, out var current) &&
+               Uri.TryCreate(requestUrl, UriKind.Absolute, out var currentRequest) &&
+               Uri.Compare(current, currentRequest, UriComponents.HttpRequestUrl, UriFormat.SafeUnescaped, StringComparison.OrdinalIgnoreCase) == 0;
+    }
+
+    private void UpdateAdBlockStatusText()
+    {
+        AdBlockStatusText.Text = _adBlockService.IsEnabled
+            ? $"On · {_blockedAdRequestCount:N0} requests blocked this session. Filter lists refresh automatically."
+            : "Off. Filter rules download when you turn this on.";
     }
 
     private void ApplyTheme(bool dark)
@@ -1125,6 +1297,9 @@ public partial class ShellWindow : Window
         foreach (var bookmark in _preferences.Bookmarks) _bookmarks.Add(bookmark);
         DarkThemeCheckBox.IsChecked = false;
         AlwaysOnTopCheckBox.IsChecked = false;
+        AdBlockingCheckBox.IsChecked = false;
+        DisableAdBlocking();
+        UpdateAdBlockStatusText();
         VoiceGainSlider.Value = 100;
         MusicGainSlider.Value = 100;
         MasterGainSlider.Value = 100;
@@ -1255,6 +1430,8 @@ public partial class ShellWindow : Window
     {
         if (_isFinishingClose)
         {
+            DisableAdBlocking();
+            _adBlockService.Dispose();
             UnregisterMuteHotkeys();
             _windowSource?.RemoveHook(WindowMessageHook);
             _windowSource = null;
@@ -1307,6 +1484,7 @@ public partial class ShellWindow : Window
                 VoiceVolumePercent = _preferences.VoiceVolumePercent,
                 MusicVolumePercent = _preferences.MusicVolumePercent,
                 MasterVolumePercent = _preferences.MasterVolumePercent,
+                AdBlockingEnabled = _preferences.AdBlockingEnabled,
                 VoiceMuteHotkey = _preferences.VoiceMuteHotkey,
                 MusicMuteHotkey = _preferences.MusicMuteHotkey,
                 Bookmarks = _preferences.Bookmarks.Select(bookmark => new Bookmark { Title = bookmark.Title, Url = bookmark.Url }).ToList()

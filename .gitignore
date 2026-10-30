@@ -11,3 +11,4 @@ artifacts/
 *.zip
 !packaging/third-party/VBCABLE_Driver_Pack45.zip
 .installer-staging/
+/native/xtreme_adblock_bridge/target/
