@@ -258,14 +258,48 @@
                 </Border>
 
                 <Border x:Name="AboutPanel" Background="{DynamicResource SurfaceBrush}" CornerRadius="18" Padding="32" Visibility="Collapsed">
-                    <StackPanel VerticalAlignment="Center" MaxWidth="620" HorizontalAlignment="Center">
-                        <Image Source="/Assets/BrandLogo.png" Width="64" Height="64" Stretch="Uniform" HorizontalAlignment="Left" AutomationProperties.Name="X-TREME PLAY'S logo" />
-                        <TextBlock Text="X-TREME PLAY'S" Foreground="{DynamicResource MainTextBrush}" FontSize="28" FontWeight="SemiBold" Margin="0,18,0,0" />
-                        <TextBlock Text="Your Music. Your Space. Your Play." Foreground="{DynamicResource AccentGreenBrush}" FontSize="15" Margin="0,4,0,0" />
-                        <TextBlock x:Name="AboutVersionText" Text="X-TREME CORPORATION" Foreground="{DynamicResource MutedTextBrush}" Margin="0,18,0,0" />
-                        <TextBlock Text="Updates are checked automatically and installed when you next open the app." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0" />
-                        <TextBlock Text="X-TREME PLAY'S is a Windows music companion. Music websites provide playback, accounts, and their own player controls. Browser runtime availability is required. When you press Start sharing, the app mixes its browser audio with your chosen microphone and sends the mix to a virtual audio cable." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,16,0,0" />
-                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel MaxWidth="700" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Image Source="/Assets/BrandLogo.png" Width="64" Height="64" Stretch="Uniform" HorizontalAlignment="Left" AutomationProperties.Name="X-TREME PLAY'S logo" />
+                            <TextBlock Text="X-TREME PLAY'S" Foreground="{DynamicResource MainTextBrush}" FontSize="28" FontWeight="SemiBold" Margin="0,18,0,0" />
+                            <TextBlock Text="Your Music. Your Space. Your Play." Foreground="{DynamicResource AccentGreenBrush}" FontSize="15" Margin="0,4,0,0" />
+                            <TextBlock x:Name="AboutVersionText" Text="X-TREME CORPORATION" Foreground="{DynamicResource MutedTextBrush}" Margin="0,18,0,0" />
+                            <TextBlock Text="Updates are checked automatically and installed when you next open the app." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                            <TextBlock Text="X-TREME PLAY'S is a Windows music companion. Music websites provide playback, accounts, and their own player controls. Browser runtime availability is required. When you press Start sharing, the app mixes its browser audio with your chosen microphone and sends the mix to a virtual audio cable." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,16,0,0" />
+
+                            <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="16" Padding="18" Margin="0,24,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid Width="76" Height="76" VerticalAlignment="Center">
+                                        <Ellipse x:Name="DeveloperAvatarCircle" AutomationProperties.Name="Abu Rayhan profile photo">
+                                            <Ellipse.Fill>
+                                                <ImageBrush ImageSource="/Assets/DeveloperAvatar.jpg" Viewbox="0.11,0.30,0.61,0.456" ViewboxUnits="RelativeToBoundingBox" Viewport="0,0,1,1" ViewportUnits="RelativeToBoundingBox" Stretch="UniformToFill" />
+                                            </Ellipse.Fill>
+                                        </Ellipse>
+                                    </Grid>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="DEVELOPED BY" Foreground="{DynamicResource AccentGreenBrush}" FontSize="10" FontWeight="Bold" />
+                                        <TextBlock Text="Abu Rayhan" Foreground="{DynamicResource MainTextBrush}" FontSize="21" FontWeight="SemiBold" Margin="0,3,0,0" />
+                                        <TextBlock Text="X-TREME CORPORATION" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <TextBlock Text="CONNECT WITH ME" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" FontWeight="Bold" Margin="2,18,0,8" />
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Button Tag="https://www.facebook.com/imaburayhan10x" Click="OpenDeveloperLink_Click" Background="{DynamicResource PaleMintBrush}" Padding="12,10" AutomationProperties.Name="Open Abu Rayhan's Facebook profile">
+                                    <StackPanel><TextBlock Text="Facebook" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" /><TextBlock Text="imaburayhan10x" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" Margin="0,3,0,0" /></StackPanel>
+                                </Button>
+                                <Button Grid.Column="2" Tag="https://aburayhan.pro.bd/" Click="OpenDeveloperLink_Click" Background="{DynamicResource SubtleBlueBrush}" Padding="12,10" AutomationProperties.Name="Open Abu Rayhan's website">
+                                    <StackPanel><TextBlock Text="Website" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" /><TextBlock Text="aburayhan.pro.bd" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" Margin="0,3,0,0" /></StackPanel>
+                                </Button>
+                                <Button Grid.Column="4" Tag="https://github.com/xtremecorporation" Click="OpenDeveloperLink_Click" Background="{DynamicResource PaleMintBrush}" Padding="12,10" AutomationProperties.Name="Open X-TREME CORPORATION on GitHub">
+                                    <StackPanel><TextBlock Text="GitHub" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" /><TextBlock Text="xtremecorporation" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" Margin="0,3,0,0" /></StackPanel>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Border>
             </Grid>
         </Grid>

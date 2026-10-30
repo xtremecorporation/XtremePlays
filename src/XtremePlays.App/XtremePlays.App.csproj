@@ -11,7 +11,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <DebugType>embedded</DebugType>
-    <Version>1.3.2</Version>
+    <Version>1.3.3</Version>
     <ApplicationIcon>Assets\XtremePlays.ico</ApplicationIcon>
     <StartupObject>XtremePlays.App.Program</StartupObject>
   </PropertyGroup>
@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\BrandLogo.png" />
+    <Resource Include="Assets\DeveloperAvatar.jpg" />
     <Resource Include="Assets\XtremePlays.ico" />
   </ItemGroup>
 

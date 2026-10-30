@@ -1201,6 +1201,26 @@ public partial class ShellWindow : Window
         }
     }
 
+    private void OpenDeveloperLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string target } ||
+            !Uri.TryCreate(target, UriKind.Absolute, out var uri) ||
+            uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+            SetStatus($"Opened {uri.Host}");
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Could not open {uri.Host}: {exception.Message}", isError: true);
+        }
+    }
+
     private void ShellWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (HandleHotkeyCapture(e))

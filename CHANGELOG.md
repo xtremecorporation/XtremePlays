@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.3
+
+- Add an About-page developer card for Abu Rayhan, with his circular profile photo and direct Facebook, personal website, and GitHub links.
+
 ## 1.3.2
 
 - Fix Full Setup's post-install check and launch action to use the actual Windows launcher name created by Velopack.
