@@ -186,7 +186,10 @@ public partial class ShellWindow : Window
             _browserAvailable = true;
             BrowserUnavailablePanel.Visibility = Visibility.Collapsed;
             Browser.Visibility = Visibility.Visible;
-            AppStatusBadge.Text = "Browser ready";
+            AppStatusBadge.Text = "Preparing extensions";
+            var bundledExtensionNotices = await BundledBrowserExtensionService.EnsureInstalledAsync(
+                Browser.CoreWebView2.Profile,
+                message => SetStatus(message));
             if (_preferences.AdBlockingEnabled)
             {
                 await EnableAdBlockingAsync(savePreference: false);
@@ -196,9 +199,14 @@ public partial class ShellWindow : Window
                 UpdateAdBlockStatusText();
             }
             await RefreshBrowserExtensionsAsync();
-            SetStatus(_adBlockService.IsEnabled
-                ? "Ready. Ad and tracker blocking is on for new browser requests."
-                : "Ready. Choose a music service to begin.");
+            var readyMessage = _adBlockService.IsEnabled
+                ? "Ready. The built-in network filter is on for new browser requests."
+                : "Ready. Choose a music service to begin.";
+            SetStatus(bundledExtensionNotices.Count == 0
+                ? readyMessage
+                : $"{readyMessage} {string.Join(" ", bundledExtensionNotices)}",
+                isError: bundledExtensionNotices.Count > 0);
+            AppStatusBadge.Text = "Browser ready";
             UpdateNavigationButtons();
         }
         catch (WebView2RuntimeNotFoundException)
@@ -309,6 +317,7 @@ public partial class ShellWindow : Window
         var selected = BrowserExtensionList.SelectedItem as BrowserExtensionItem;
         ToggleBrowserExtensionButton.IsEnabled = _extensionSupportAvailable && selected is not null;
         RemoveBrowserExtensionButton.IsEnabled = _extensionSupportAvailable && selected is not null;
+        RestoreBundledExtensionsButton.IsEnabled = _browserAvailable && _extensionSupportAvailable && BundledBrowserExtensionService.HasRemovedExtensions;
         ToggleBrowserExtensionButton.Content = selected?.IsEnabled == true ? "Disable" : "Enable";
         if (selected is not null) ToggleBrowserExtensionButton.ToolTip = $"Extension ID: {selected.Id}";
     }
@@ -333,6 +342,32 @@ public partial class ShellWindow : Window
         catch (Exception exception)
         {
             ExtensionManagerStatusText.Text = $"Could not open Chrome Web Store: {exception.Message}";
+        }
+    }
+
+    private async void RestoreBundledExtensions_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_browserAvailable || !_extensionSupportAvailable)
+        {
+            ExtensionManagerStatusText.Text = "Browser extension support is not available in the current WebView2 Runtime.";
+            return;
+        }
+
+        try
+        {
+            BundledBrowserExtensionService.RestoreRemovedExtensions();
+            var notices = await BundledBrowserExtensionService.EnsureInstalledAsync(
+                Browser.CoreWebView2.Profile,
+                message => SetStatus(message));
+            await RefreshBrowserExtensionsAsync();
+            ExtensionManagerStatusText.Text = notices.Count == 0
+                ? "The included AdBlock and AdGuard extensions are restored."
+                : string.Join(" ", notices);
+            SetStatus(notices.Count == 0 ? "Included extensions restored." : string.Join(" ", notices), isError: notices.Count > 0);
+        }
+        catch (Exception exception)
+        {
+            ExtensionManagerStatusText.Text = $"Could not restore the included extensions: {exception.Message}";
         }
     }
 
@@ -416,6 +451,17 @@ public partial class ShellWindow : Window
             await item.Extension.RemoveAsync();
             var extensionName = item.Name;
             var cleanupWarning = string.Empty;
+            if (BundledBrowserExtensionService.IsBundled(item.Id))
+            {
+                try
+                {
+                    BundledBrowserExtensionService.MarkRemoved(item.Id);
+                }
+                catch (Exception exception)
+                {
+                    cleanupWarning = $" The removal preference could not be saved: {exception.Message}";
+                }
+            }
             try
             {
                 BrowserExtensionImportService.ForgetAndDeleteSource(item.Id);

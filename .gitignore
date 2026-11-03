@@ -10,5 +10,7 @@ publish/
 artifacts/
 *.zip
 !packaging/third-party/VBCABLE_Driver_Pack45.zip
+!packaging/third-party/browser-extensions/AdBlock-6.52.0.zip
+!packaging/third-party/browser-extensions/AdGuard-5.5.3.42.zip
 .installer-staging/
 /native/xtreme_adblock_bridge/target/

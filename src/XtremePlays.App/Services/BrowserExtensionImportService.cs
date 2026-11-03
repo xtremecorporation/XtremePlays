@@ -12,7 +12,8 @@ public sealed class BrowserExtensionItem(CoreWebView2BrowserExtension extension)
     public string Id => Extension.Id;
     public string Name => Extension.Name;
     public bool IsEnabled => Extension.IsEnabled;
-    public string DisplayName => $"{Name}  ·  {(IsEnabled ? "Enabled" : "Disabled")}";
+    public bool IsBundled => BundledBrowserExtensionService.IsBundled(Id);
+    public string DisplayName => $"{Name}  ·  {(IsBundled ? "Included" : "Added")}  ·  {(IsEnabled ? "Enabled" : "Disabled")}";
 }
 
 public static class BrowserExtensionImportService

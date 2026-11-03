@@ -11,7 +11,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <DebugType>embedded</DebugType>
-    <Version>1.4.0</Version>
+    <Version>1.5.0</Version>
     <ApplicationIcon>Assets\XtremePlays.ico</ApplicationIcon>
     <StartupObject>XtremePlays.App.Program</StartupObject>
   </PropertyGroup>
@@ -31,6 +31,19 @@
     <Resource Include="Assets\BrandLogo.png" />
     <Resource Include="Assets\DeveloperAvatar.jpg" />
     <Resource Include="Assets\XtremePlays.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\packaging\third-party\browser-extensions\AdBlock-6.52.0.zip">
+      <Link>BundledExtensions\AdBlock-6.52.0.zip</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\packaging\third-party\browser-extensions\AdGuard-5.5.3.42.zip">
+      <Link>BundledExtensions\AdGuard-5.5.3.42.zip</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
