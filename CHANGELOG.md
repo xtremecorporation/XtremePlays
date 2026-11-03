@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1
+
+- Fix the AdGuard package SHA-256 so it installs automatically after update.
+
 ## 1.5.0
 
 - Include AdBlock and AdGuard and install them automatically in the app's WebView2 profile. Keep the built-in Brave ad-block filter available separately.
