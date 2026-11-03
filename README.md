@@ -59,9 +59,9 @@ The first updater-enabled release is a migration release: existing 1.2.2 install
 - Integrated setup that bundles VB-CABLE and migrates the previous system-wide app install without deleting app data.
 - GitHub Releases updates, Windows build/release automation, and weekly Dependabot checks for NuGet and workflow actions.
 - Optional Brave adblock-rust network filtering for the embedded browser, controlled in Settings and backed by the user's local EasyList/EasyPrivacy cache.
-- AdBlock 6.52.0 and AdGuard 5.5.3.42 are installed automatically in the WebView2 profile. They can be disabled or removed from Extensions and restored from that page. Other compatible unpacked extensions can be added after reviewing their declared access.
+- AdBlock 6.52.0 and AdGuard 5.5.3.42 are installed automatically in the WebView2 profile. They can be disabled or removed from Extensions and restored from that page. The app removes the unwanted Microsoft Clipboard Extension and Microsoft Edge PDF Viewer from its profile at startup. Other compatible unpacked extensions can be added after reviewing their declared access and pinned to the top of the manager list.
 - The separate Brave adblock-rust engine remains in Settings and is unchanged. It can run alongside both included extensions; turn a blocker off if a page or playback breaks.
-- Chrome Web Store installs go to Chrome. WebView2 does not provide a browser toolbar for extension icons or popups, and some extension settings/features can be unavailable.
+- Chrome Web Store installs go to Chrome. WebView2 does not provide browser toolbar extension icons or popups; the app's pin control keeps an extension at the top of the manager list, and some extension settings/features can be unavailable.
 
 ## Developer
 

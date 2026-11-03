@@ -316,13 +316,13 @@
                         <StackPanel>
                             <TextBlock Text="BROWSER TOOLS" Foreground="{DynamicResource AccentGreenBrush}" FontSize="11" FontWeight="Bold" />
                             <TextBlock Text="Extensions" Foreground="{DynamicResource MainTextBrush}" FontSize="28" FontWeight="SemiBold" Margin="0,5,0,0" />
-                            <TextBlock Text="AdBlock and AdGuard can inspect website content to filter ads. You can also add compatible unpacked extensions, then enable, disable, or remove them here." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,7,0,0" />
+                            <TextBlock Text="Manage extensions installed in this app. Pin trusted extensions to keep them at the top, or enable, disable, and remove them here." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,7,0,0" />
                         </StackPanel>
                         <Border Grid.Row="1" Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="15" Margin="0,18,0,0">
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Text="Included AdBlock and AdGuard" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="14" />
-                                    <TextBlock Text="Both are enabled automatically alongside the separate built-in network filter. If a page or playback breaks, disable one here or manage the built-in filter in Settings." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,12,0" />
+                                    <TextBlock Text="Both are installed alongside the separate built-in network filter. You can disable or remove either one below if a page or playback breaks." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,12,0" />
                                 </StackPanel>
                                 <Button x:Name="RestoreBundledExtensionsButton" Grid.Column="1" Content="Restore included" Click="RestoreBundledExtensions_Click" Margin="0,0,8,0" VerticalAlignment="Center" IsEnabled="False" />
                                 <Button Grid.Column="2" Content="Open Settings" Click="OpenAdBlockSettings_Click" VerticalAlignment="Center" Background="{DynamicResource PaleMintBrush}" />
@@ -331,16 +331,29 @@
                         <Grid Grid.Row="2" Margin="0,18,0,14">
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                             <TextBlock Text="INSTALLED IN THIS APP" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" FontWeight="SemiBold" />
-                            <ListBox x:Name="BrowserExtensionList" Grid.Row="1" DisplayMemberPath="DisplayName" Margin="0,8,0,8" Padding="6" SelectionChanged="BrowserExtensionList_SelectionChanged" AutomationProperties.Name="Installed browser extensions" />
+                            <ListBox x:Name="BrowserExtensionList" Grid.Row="1" Margin="0,8,0,8" Padding="6" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource MainTextBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}" SelectionChanged="BrowserExtensionList_SelectionChanged" AutomationProperties.Name="Installed browser extensions">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,3">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center" Margin="4,0,12,0">
+                                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" Margin="0,3,0,0" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="{Binding PinActionLabel}" Click="PinBrowserExtension_Click" Margin="3,0" MinWidth="58" ToolTip="Keep this extension at the top of this list" />
+                                            <Button Grid.Column="2" Content="{Binding ToggleActionLabel}" Click="ToggleBrowserExtension_Click" Margin="3,0" MinWidth="74" />
+                                            <Button Grid.Column="3" Content="Remove" Click="RemoveBrowserExtension_Click" Margin="3,0" MinWidth="68" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                             <TextBlock x:Name="ExtensionManagerStatusText" Grid.Row="2" Text="Loading extensions…" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" />
                         </Grid>
                         <Grid Grid.Row="3">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <TextBlock Text="Store installs go to Chrome. To use an extension here, select its unpacked folder with manifest.json." Foreground="{DynamicResource MutedTextBrush}" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="WebView2 cannot display extension toolbar popups. Pinning keeps an extension at the top of this list. Add compatible unpacked folders to use extensions in this app." Foreground="{DynamicResource MutedTextBrush}" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
                             <Button Grid.Column="1" Content="Chrome Web Store" Click="OpenExtensionStore_Click" Margin="3,0" AutomationProperties.Name="Open Chrome Web Store in the default browser" />
                             <Button x:Name="AddBrowserExtensionButton" Grid.Column="2" Content="Add from folder…" Click="AddBrowserExtension_Click" Margin="3,0" Background="{DynamicResource PaleMintBrush}" IsEnabled="False" AutomationProperties.Name="Add an unpacked browser extension from a folder" />
-                            <Button x:Name="ToggleBrowserExtensionButton" Grid.Column="3" Content="Enable / Disable" Click="ToggleBrowserExtension_Click" Margin="3,0" IsEnabled="False" />
-                            <Button x:Name="RemoveBrowserExtensionButton" Grid.Column="4" Content="Remove" Click="RemoveBrowserExtension_Click" Margin="3,0" IsEnabled="False" />
                         </Grid>
                     </Grid>
                 </Border>
