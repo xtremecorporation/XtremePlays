@@ -30,6 +30,8 @@ New-Item -ItemType Directory -Path $thirdPartyDir -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'third-party\BRAVE-ADBLOCK-NOTICE.txt') -Destination (Join-Path $thirdPartyDir 'BRAVE-ADBLOCK-NOTICE.txt') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'third-party\MOZILLA-PUBLIC-LICENSE-2.0.txt') -Destination (Join-Path $thirdPartyDir 'MOZILLA-PUBLIC-LICENSE-2.0.txt') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'third-party\EASYLIST-FILTER-LISTS-NOTICE.txt') -Destination (Join-Path $thirdPartyDir 'EASYLIST-FILTER-LISTS-NOTICE.txt') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'third-party\browser-extensions\NOTICE.txt') -Destination (Join-Path $thirdPartyDir 'BROWSER-EXTENSIONS-NOTICE.txt') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'third-party\browser-extensions\GPL-3.0.txt') -Destination (Join-Path $thirdPartyDir 'GPL-3.0.txt') -Force
 
 New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
 New-Item -ItemType Directory -Path $publishDir -Force | Out-Null

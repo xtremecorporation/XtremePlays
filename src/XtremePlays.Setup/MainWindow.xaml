@@ -42,7 +42,7 @@
                 <CheckBox x:Name="DesktopShortcutCheckBox" Content="Create a desktop shortcut" IsChecked="True" />
                 <CheckBox x:Name="LaunchAfterInstallCheckBox" Content="Launch X-TREME PLAY'S when setup finishes" IsChecked="True" Margin="0,10,0,0" />
                 <TextBlock Text="The app is installed for your Windows account and appears in Start and Windows Settings → Apps. Administrator permission is only needed for VB-CABLE or an older system-wide app migration. Updates do not reinstall the driver." TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="0,14,0,0" />
-                <TextBlock Text="If Microsoft Edge WebView2 Runtime is missing, setup installs it from Microsoft. Internet is needed only for that missing-runtime step." TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,0" />
+                <TextBlock Text="AdBlock and AdGuard are included and set up on first launch. They can inspect website content to filter ads and use about 500 MB of local storage. If Microsoft Edge WebView2 Runtime is missing, setup installs it from Microsoft." TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,0" />
             </StackPanel>
         </Border>
 

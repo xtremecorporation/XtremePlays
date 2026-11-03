@@ -1,0 +1,12 @@
+Included browser extensions
+
+The following unmodified Chrome Web Store extension packages are included with X-TREME PLAY'S and installed in its WebView2 profile:
+
+- AdBlock 6.52.0 — extension ID gighmmpiobklfepjocnamgkkbiglidom
+  Source: https://gitlab.com/eyeo/browser-extensions-and-premium/extensions/extensions
+- AdGuard AdBlocker 5.5.3.42 — extension ID bgnkhhnnamicmpeenaelnjfhikgbkllg
+  Source: https://github.com/AdguardTeam/AdguardBrowserExtension
+
+Both projects are distributed under GNU General Public License version 3.0. The full license is included as GPL-3.0.txt. The AdBlock package also carries its original COPYING and third-party notices.
+
+These extensions are distributed as unmodified packages. Their toolbar buttons and popup windows are not available in the embedded WebView2 browser UI; some extension settings and features may therefore be unavailable. Future X-TREME PLAY'S releases can update the bundled package versions.

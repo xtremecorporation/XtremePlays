@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.0
+
+- Include AdBlock and AdGuard and install them automatically in the app's WebView2 profile. Keep the built-in Brave ad-block filter available separately.
+- Add the included extension versions to the Extensions manager with enable, disable, remove, and restore controls; removed extensions stay removed until restored.
+- Verify included extension archives before extracting them to the user's app data, and keep user-added extensions separate from the shipped packages.
+- Document the GPL-3.0 notices, source projects, WebView2 UI limitations, and the added local storage requirement.
+- Add a browser extension manager for compatible local unpacked extensions, with permission review, enable/disable, and removal controls.
+
 ## 1.4.0
 
 - Add optional ad and tracker blocking in Settings, powered by Brave's open-source adblock-rust network filter engine.

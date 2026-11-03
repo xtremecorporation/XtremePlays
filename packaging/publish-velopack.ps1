@@ -7,6 +7,8 @@ $noticeFile = Join-Path $PSScriptRoot 'third-party\VB-CABLE-NOTICE.txt'
 $adBlockNoticeFile = Join-Path $PSScriptRoot 'third-party\BRAVE-ADBLOCK-NOTICE.txt'
 $adBlockLicenseFile = Join-Path $PSScriptRoot 'third-party\MOZILLA-PUBLIC-LICENSE-2.0.txt'
 $filterListNoticeFile = Join-Path $PSScriptRoot 'third-party\EASYLIST-FILTER-LISTS-NOTICE.txt'
+$browserExtensionsNoticeFile = Join-Path $PSScriptRoot 'third-party\browser-extensions\NOTICE.txt'
+$browserExtensionsLicenseFile = Join-Path $PSScriptRoot 'third-party\browser-extensions\GPL-3.0.txt'
 $projectMetadata = [xml](Get-Content -LiteralPath $project -Raw)
 $version = [string]$projectMetadata.Project.PropertyGroup.Version
 if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Set a valid semantic version in the app project before packaging.' }
@@ -54,7 +56,8 @@ Copy-Item -LiteralPath $noticeFile -Destination (Join-Path $thirdPartyDir 'VB-CA
 Copy-Item -LiteralPath $adBlockNoticeFile -Destination (Join-Path $thirdPartyDir 'BRAVE-ADBLOCK-NOTICE.txt') -Force
 Copy-Item -LiteralPath $adBlockLicenseFile -Destination (Join-Path $thirdPartyDir 'MOZILLA-PUBLIC-LICENSE-2.0.txt') -Force
 Copy-Item -LiteralPath $filterListNoticeFile -Destination (Join-Path $thirdPartyDir 'EASYLIST-FILTER-LISTS-NOTICE.txt') -Force
-Copy-Item -LiteralPath $filterListNoticeFile -Destination (Join-Path $thirdPartyDir 'EASYLIST-FILTER-LISTS-NOTICE.txt') -Force
+Copy-Item -LiteralPath $browserExtensionsNoticeFile -Destination (Join-Path $thirdPartyDir 'BROWSER-EXTENSIONS-NOTICE.txt') -Force
+Copy-Item -LiteralPath $browserExtensionsLicenseFile -Destination (Join-Path $thirdPartyDir 'GPL-3.0.txt') -Force
 Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination (Join-Path $publishFullPath 'README.txt') -Force
 New-Item -ItemType Directory -Path $packageInputFullPath -Force | Out-Null
 Get-ChildItem -LiteralPath $publishFullPath -Force | ForEach-Object {
