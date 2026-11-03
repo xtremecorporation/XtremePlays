@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1
+
+- Fix the AdGuard package SHA-256 so it installs automatically after update.
+- Remove the unwanted Microsoft Clipboard Extension and Microsoft Edge PDF Viewer from the app's WebView2 profile on startup.
+- Put enable/disable, pin-to-top, and remove controls directly on each extension row, and persist pinned extensions.
+- Clarify that extension pinning keeps an item at the top of the manager; WebView2 does not provide browser toolbar popup controls.
+
 ## 1.5.0
 
 - Include AdBlock and AdGuard and install them automatically in the app's WebView2 profile. Keep the built-in Brave ad-block filter available separately.

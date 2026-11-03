@@ -28,11 +28,11 @@ Build the Brave ad-block engine and self-contained app payload, then create the 
 ./packaging/build-adblock.ps1
 ./packaging/publish-velopack.ps1
 dotnet tool install --global vpk --version 1.2.161
-vpk pack --packId XtremePlays --packVersion 1.5.0 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
+vpk pack --packId XtremePlays --packVersion 1.5.1 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
 ./packaging/build-installer.ps1
 ```
 
-The integrated setup is written to `artifacts/XtremePlays-1.5.0-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
+The integrated setup is written to `artifacts/XtremePlays-1.5.1-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
 
 ## Publish an update with GitHub Actions
 
@@ -40,7 +40,7 @@ The `Windows build` workflow builds app changes on pushes and pull requests to `
 
 1. Update the app and setup `<Version>` values to the same `x.y.z` version.
 2. Add a matching section at the top of `CHANGELOG.md`.
-3. Push the version tag, for example `git tag v1.5.0` followed by `git push origin v1.5.0`.
+3. Push the version tag, for example `git tag v1.5.1` followed by `git push origin v1.5.1`.
 
 GitHub Actions builds the app, creates Velopack full/delta packages, builds the integrated driver setup, uploads all release assets to a draft, and publishes only after the full setup is attached. No personal access token or signing secret is required; the workflow uses its repository-scoped `GITHUB_TOKEN`. The repository must be public for anonymous clients to receive updates.
 
@@ -59,9 +59,9 @@ The first updater-enabled release is a migration release: existing 1.2.2 install
 - Integrated setup that bundles VB-CABLE and migrates the previous system-wide app install without deleting app data.
 - GitHub Releases updates, Windows build/release automation, and weekly Dependabot checks for NuGet and workflow actions.
 - Optional Brave adblock-rust network filtering for the embedded browser, controlled in Settings and backed by the user's local EasyList/EasyPrivacy cache.
-- AdBlock 6.52.0 and AdGuard 5.5.3.42 are installed automatically in the WebView2 profile. They can be disabled or removed from Extensions and restored from that page. Other compatible unpacked extensions can be added after reviewing their declared access.
+- AdBlock 6.52.0 and AdGuard 5.5.3.42 are installed automatically in the WebView2 profile. They can be disabled or removed from Extensions and restored from that page. The app removes the unwanted Microsoft Clipboard Extension and Microsoft Edge PDF Viewer from its profile at startup. Other compatible unpacked extensions can be added after reviewing their declared access and pinned to the top of the manager list.
 - The separate Brave adblock-rust engine remains in Settings and is unchanged. It can run alongside both included extensions; turn a blocker off if a page or playback breaks.
-- Chrome Web Store installs go to Chrome. WebView2 does not provide a browser toolbar for extension icons or popups, and some extension settings/features can be unavailable.
+- Chrome Web Store installs go to Chrome. WebView2 does not provide browser toolbar extension icons or popups; the app's pin control keeps an extension at the top of the manager list, and some extension settings/features can be unavailable.
 
 ## Developer
 

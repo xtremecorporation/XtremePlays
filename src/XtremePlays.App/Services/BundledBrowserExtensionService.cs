@@ -26,7 +26,7 @@ public static class BundledBrowserExtensionService
             "AdGuard AdBlocker",
             "5.5.3.42",
             "AdGuard-5.5.3.42.zip",
-            "86F52A9D84162A7106A892E2369F89C48856276C0DD611BB1151E1E851FA2A9")
+            "86F52A9D84162A7106A892E2369F89C48856276C0DD6111BB1151E1E851FA2A9")
     ];
 
     public static bool IsBundled(string extensionId) => Definitions.Any(definition =>

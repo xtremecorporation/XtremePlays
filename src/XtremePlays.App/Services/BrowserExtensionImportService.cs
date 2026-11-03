@@ -13,7 +13,10 @@ public sealed class BrowserExtensionItem(CoreWebView2BrowserExtension extension)
     public string Name => Extension.Name;
     public bool IsEnabled => Extension.IsEnabled;
     public bool IsBundled => BundledBrowserExtensionService.IsBundled(Id);
-    public string DisplayName => $"{Name}  ·  {(IsBundled ? "Included" : "Added")}  ·  {(IsEnabled ? "Enabled" : "Disabled")}";
+    public bool IsPinned => BrowserExtensionPreferences.IsPinned(Id);
+    public string StatusText => $"{(IsBundled ? "Included" : "Added")} · {(IsEnabled ? "Enabled" : "Disabled")}";
+    public string ToggleActionLabel => IsEnabled ? "Disable" : "Enable";
+    public string PinActionLabel => IsPinned ? "Unpin" : "Pin";
 }
 
 public static class BrowserExtensionImportService

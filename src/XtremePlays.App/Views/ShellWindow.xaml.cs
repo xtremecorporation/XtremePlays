@@ -187,9 +187,12 @@ public partial class ShellWindow : Window
             BrowserUnavailablePanel.Visibility = Visibility.Collapsed;
             Browser.Visibility = Visibility.Visible;
             AppStatusBadge.Text = "Preparing extensions";
-            var bundledExtensionNotices = await BundledBrowserExtensionService.EnsureInstalledAsync(
+            var unwantedExtensionNotices = _extensionSupportAvailable
+                ? await UnwantedBrowserExtensionCleanup.RemoveAsync(Browser.CoreWebView2.Profile)
+                : Array.Empty<string>();
+            var bundledExtensionNotices = unwantedExtensionNotices.Concat(await BundledBrowserExtensionService.EnsureInstalledAsync(
                 Browser.CoreWebView2.Profile,
-                message => SetStatus(message));
+                message => SetStatus(message))).ToList();
             if (_preferences.AdBlockingEnabled)
             {
                 await EnableAdBlockingAsync(savePreference: false);
@@ -295,7 +298,9 @@ public partial class ShellWindow : Window
         try
         {
             var installed = await Browser.CoreWebView2.Profile.GetBrowserExtensionsAsync();
-            foreach (var extension in installed.OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase))
+            foreach (var extension in installed
+                         .OrderByDescending(item => BrowserExtensionPreferences.IsPinned(item.Id))
+                         .ThenBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase))
                 _browserExtensions.Add(new BrowserExtensionItem(extension));
 
             ExtensionManagerStatusText.Text = installed.Count == 0
@@ -314,15 +319,14 @@ public partial class ShellWindow : Window
 
     private void UpdateBrowserExtensionControls()
     {
-        var selected = BrowserExtensionList.SelectedItem as BrowserExtensionItem;
-        ToggleBrowserExtensionButton.IsEnabled = _extensionSupportAvailable && selected is not null;
-        RemoveBrowserExtensionButton.IsEnabled = _extensionSupportAvailable && selected is not null;
         RestoreBundledExtensionsButton.IsEnabled = _browserAvailable && _extensionSupportAvailable && BundledBrowserExtensionService.HasRemovedExtensions;
-        ToggleBrowserExtensionButton.Content = selected?.IsEnabled == true ? "Disable" : "Enable";
-        if (selected is not null) ToggleBrowserExtensionButton.ToolTip = $"Extension ID: {selected.Id}";
     }
 
     private void BrowserExtensionList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateBrowserExtensionControls();
+
+    private BrowserExtensionItem? GetBrowserExtensionItem(object sender) =>
+        (sender as FrameworkElement)?.DataContext as BrowserExtensionItem
+        ?? BrowserExtensionList.SelectedItem as BrowserExtensionItem;
 
     private async void ManageExtensions_Click(object sender, RoutedEventArgs e) => await ShowExtensionsPanelAsync();
 
@@ -427,12 +431,16 @@ public partial class ShellWindow : Window
 
     private async void ToggleBrowserExtension_Click(object sender, RoutedEventArgs e)
     {
-        if (BrowserExtensionList.SelectedItem is not BrowserExtensionItem item) return;
+        if (GetBrowserExtensionItem(sender) is not { } item) return;
+        var enabled = !item.IsEnabled;
         try
         {
-            await item.Extension.EnableAsync(!item.IsEnabled);
+            await item.Extension.EnableAsync(enabled);
             await RefreshBrowserExtensionsAsync();
-            ExtensionManagerStatusText.Text = $"'{item.Name}' is now {(item.Extension.IsEnabled ? "enabled" : "disabled")}.";
+            var updated = _browserExtensions.FirstOrDefault(extension => extension.Id == item.Id);
+            ExtensionManagerStatusText.Text = updated?.IsEnabled == enabled
+                ? $"'{item.Name}' is now {(enabled ? "enabled" : "disabled")}."
+                : $"WebView2 did not confirm the requested state for '{item.Name}'. Close and reopen the Extensions page, then try again.";
         }
         catch (Exception exception)
         {
@@ -440,9 +448,26 @@ public partial class ShellWindow : Window
         }
     }
 
+    private async void PinBrowserExtension_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetBrowserExtensionItem(sender) is not { } item) return;
+        try
+        {
+            var pinned = BrowserExtensionPreferences.TogglePinned(item.Id);
+            await RefreshBrowserExtensionsAsync();
+            ExtensionManagerStatusText.Text = pinned
+                ? $"'{item.Name}' is pinned at the top of this list."
+                : $"'{item.Name}' was unpinned.";
+        }
+        catch (Exception exception)
+        {
+            ExtensionManagerStatusText.Text = $"Could not change the pin for '{item.Name}': {exception.Message}";
+        }
+    }
+
     private async void RemoveBrowserExtension_Click(object sender, RoutedEventArgs e)
     {
-        if (BrowserExtensionList.SelectedItem is not BrowserExtensionItem item) return;
+        if (GetBrowserExtensionItem(sender) is not { } item) return;
         if (MessageBox.Show(this, $"Remove '{item.Name}' from X-TREME PLAY'S? This takes effect immediately.",
                 "Remove browser extension", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
@@ -451,6 +476,14 @@ public partial class ShellWindow : Window
             await item.Extension.RemoveAsync();
             var extensionName = item.Name;
             var cleanupWarning = string.Empty;
+            try
+            {
+                BrowserExtensionPreferences.Forget(item.Id);
+            }
+            catch (Exception exception)
+            {
+                cleanupWarning = $" Its pin preference could not be cleared: {exception.Message}";
+            }
             if (BundledBrowserExtensionService.IsBundled(item.Id))
             {
                 try
