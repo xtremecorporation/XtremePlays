@@ -9,6 +9,7 @@ public static class AppPaths
     public static string DataDirectory { get; private set; } = string.Empty;
     public static string SettingsFile => Path.Combine(DataDirectory, "settings.json");
     public static string BrowserUserDataDirectory => Path.Combine(DataDirectory, "BrowserData");
+    public static string ExtensionSourcesDirectory => Path.Combine(DataDirectory, "ExtensionSources");
     public static bool IsPortable { get; private set; }
 
     public static void Initialize(IEnumerable<string>? arguments = null)
@@ -28,6 +29,7 @@ public static class AppPaths
 
         Directory.CreateDirectory(DataDirectory);
         Directory.CreateDirectory(BrowserUserDataDirectory);
+        Directory.CreateDirectory(ExtensionSourcesDirectory);
         _initialized = true;
     }
 }

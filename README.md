@@ -59,6 +59,7 @@ The first updater-enabled release is a migration release: existing 1.2.2 install
 - Integrated setup that bundles VB-CABLE and migrates the previous system-wide app install without deleting app data.
 - GitHub Releases updates, Windows build/release automation, and weekly Dependabot checks for NuGet and workflow actions.
 - Optional Brave adblock-rust network filtering for the embedded browser, controlled in Settings and backed by the user's local EasyList/EasyPrivacy cache.
+- Optional WebView2 browser extensions: add a compatible unpacked folder, review its declared access, then enable, disable, or remove it from the Extensions button beside the bookmark controls. Chrome Web Store installs go to Chrome; some extensions and toolbar popups are not supported by WebView2.
 
 ## Developer
 

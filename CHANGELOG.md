@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add a browser extension manager for compatible local unpacked extensions, with permission review, enable/disable, and removal controls.
+- Keep X-TREME PLAY'S lightweight by using WebView2's extension support and retaining the existing built-in ad and tracker filter.
+- Explain that Chrome Web Store installs go to Chrome and that some extension features, including toolbar popups, are not available in the embedded browser.
+
 ## 1.4.0
 
 - Add optional ad and tracker blocking in Settings, powered by Brave's open-source adblock-rust network filter engine.

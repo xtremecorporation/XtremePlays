@@ -38,9 +38,11 @@ public partial class ShellWindow : Window
     private readonly AdBlockService _adBlockService = new();
     private readonly DispatcherTimer _audioMeterTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly ObservableCollection<Bookmark> _bookmarks = [];
+    private readonly ObservableCollection<BrowserExtensionItem> _browserExtensions = [];
     private AppPreferences _preferences = new();
     private bool _settingsLoaded;
     private bool _browserAvailable;
+    private bool _extensionSupportAvailable;
     private bool _isFinishingClose;
     private bool _compactMode;
     private bool _topmostBeforeCompact;
@@ -62,6 +64,7 @@ public partial class ShellWindow : Window
         AboutVersionText.Text = $"Version {typeof(App).Assembly.GetName().Version?.ToString(3) ?? "1.3.0"} · X-TREME CORPORATION";
         BookmarkList.ItemsSource = _bookmarks;
         QuickBookmarkSelector.ItemsSource = _bookmarks;
+        BrowserExtensionList.ItemsSource = _browserExtensions;
         _audioMeterTimer.Tick += AudioMeterTimer_Tick;
         PreviewKeyDown += ShellWindow_PreviewKeyDown;
     }
@@ -158,7 +161,20 @@ public partial class ShellWindow : Window
         try
         {
             _ = CoreWebView2Environment.GetAvailableBrowserVersionString();
-            var environment = await CoreWebView2Environment.CreateAsync(null, AppPaths.BrowserUserDataDirectory);
+            CoreWebView2Environment environment;
+            try
+            {
+                var options = new CoreWebView2EnvironmentOptions { AreBrowserExtensionsEnabled = true };
+                environment = await CoreWebView2Environment.CreateAsync(null, AppPaths.BrowserUserDataDirectory, options);
+                _extensionSupportAvailable = true;
+            }
+            catch
+            {
+                // Keep the existing browser usable if this WebView2 Runtime cannot enable extensions.
+                environment = await CoreWebView2Environment.CreateAsync(null, AppPaths.BrowserUserDataDirectory);
+                _extensionSupportAvailable = false;
+            }
+
             await Browser.EnsureCoreWebView2Async(environment);
             Browser.CoreWebView2.Settings.IsStatusBarEnabled = false;
             Browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
@@ -179,6 +195,7 @@ public partial class ShellWindow : Window
             {
                 UpdateAdBlockStatusText();
             }
+            await RefreshBrowserExtensionsAsync();
             SetStatus(_adBlockService.IsEnabled
                 ? "Ready. Ad and tracker blocking is on for new browser requests."
                 : "Ready. Choose a music service to begin.");
@@ -219,6 +236,7 @@ public partial class ShellWindow : Window
             case "YouTube Music": NavigateToService("YouTube Music", "https://music.youtube.com/"); break;
             case "Spotify": NavigateToService("Spotify", "https://open.spotify.com/"); break;
             case "Bookmarks": ShowPanel(BookmarksPanel); SetStatus("Bookmarks"); break;
+            case "Extensions": _ = ShowExtensionsPanelAsync(); break;
             case "Audio Sharing":
                 ShowPanel(AudioPanel);
                 _ = RefreshAudioDevicesAsync();
@@ -237,7 +255,182 @@ public partial class ShellWindow : Window
         AudioPanel.Visibility = Visibility.Collapsed;
         SettingsPanel.Visibility = Visibility.Collapsed;
         AboutPanel.Visibility = Visibility.Collapsed;
+        ExtensionsPanel.Visibility = Visibility.Collapsed;
         panel.Visibility = Visibility.Visible;
+    }
+
+    private async Task ShowExtensionsPanelAsync()
+    {
+        ShowPanel(ExtensionsPanel);
+        await RefreshBrowserExtensionsAsync();
+        SetStatus("Browser extensions");
+    }
+
+    private async Task RefreshBrowserExtensionsAsync()
+    {
+        AddBrowserExtensionButton.IsEnabled = _browserAvailable && _extensionSupportAvailable;
+        _browserExtensions.Clear();
+        UpdateBrowserExtensionControls();
+
+        if (!_browserAvailable)
+        {
+            ExtensionManagerStatusText.Text = "Browser extensions are unavailable until WebView2 starts.";
+            return;
+        }
+
+        if (!_extensionSupportAvailable)
+        {
+            ExtensionManagerStatusText.Text = "This WebView2 Runtime could not enable extension support. The browser and other app features are still available.";
+            return;
+        }
+
+        try
+        {
+            var installed = await Browser.CoreWebView2.Profile.GetBrowserExtensionsAsync();
+            foreach (var extension in installed.OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase))
+                _browserExtensions.Add(new BrowserExtensionItem(extension));
+
+            ExtensionManagerStatusText.Text = installed.Count == 0
+                ? "No extensions are installed in X-TREME PLAY'S yet."
+                : $"{installed.Count} extension(s) installed. Some Chrome extensions or toolbar popups may not be supported by WebView2.";
+        }
+        catch (Exception exception)
+        {
+            _extensionSupportAvailable = false;
+            AddBrowserExtensionButton.IsEnabled = false;
+            ExtensionManagerStatusText.Text = $"Could not read extensions from this WebView2 Runtime: {exception.Message}";
+        }
+
+        UpdateBrowserExtensionControls();
+    }
+
+    private void UpdateBrowserExtensionControls()
+    {
+        var selected = BrowserExtensionList.SelectedItem as BrowserExtensionItem;
+        ToggleBrowserExtensionButton.IsEnabled = _extensionSupportAvailable && selected is not null;
+        RemoveBrowserExtensionButton.IsEnabled = _extensionSupportAvailable && selected is not null;
+        ToggleBrowserExtensionButton.Content = selected?.IsEnabled == true ? "Disable" : "Enable";
+        if (selected is not null) ToggleBrowserExtensionButton.ToolTip = $"Extension ID: {selected.Id}";
+    }
+
+    private void BrowserExtensionList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateBrowserExtensionControls();
+
+    private async void ManageExtensions_Click(object sender, RoutedEventArgs e) => await ShowExtensionsPanelAsync();
+
+    private void OpenAdBlockSettings_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPanel(SettingsPanel);
+        SetStatus("Ad and tracker blocking settings");
+    }
+
+    private void OpenExtensionStore_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("https://chromewebstore.google.com/") { UseShellExecute = true });
+            ExtensionManagerStatusText.Text = "Opened Chrome Web Store. Store installs go to Chrome; import a compatible unpacked folder to use an extension in this app.";
+        }
+        catch (Exception exception)
+        {
+            ExtensionManagerStatusText.Text = $"Could not open Chrome Web Store: {exception.Message}";
+        }
+    }
+
+    private async void AddBrowserExtension_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_browserAvailable || !_extensionSupportAvailable)
+        {
+            ExtensionManagerStatusText.Text = "Browser extension support is not available in the current WebView2 Runtime.";
+            return;
+        }
+
+        var dialog = new OpenFolderDialog { Title = "Choose an unpacked browser extension folder" };
+        if (dialog.ShowDialog(this) != true) return;
+
+        string? managedFolder = null;
+        var installed = false;
+        try
+        {
+            var manifest = BrowserExtensionImportService.Inspect(dialog.FolderName);
+            var permissions = manifest.RequestedAccess.Count == 0
+                ? "No required or optional permissions were declared in the manifest."
+                : string.Join(Environment.NewLine, manifest.RequestedAccess.Take(15))
+                  + (manifest.RequestedAccess.Count > 15 ? $"{Environment.NewLine}… and {manifest.RequestedAccess.Count - 15} more" : string.Empty);
+            var description = string.IsNullOrWhiteSpace(manifest.Description)
+                ? string.Empty
+                : $"{manifest.Description[..Math.Min(manifest.Description.Length, 300)]}{(manifest.Description.Length > 300 ? "…" : string.Empty)}{Environment.NewLine}{Environment.NewLine}";
+            var prompt = $"Install '{manifest.Name}' in X-TREME PLAY'S?{Environment.NewLine}Manifest version: {manifest.ManifestVersion}{Environment.NewLine}{Environment.NewLine}"
+                         + description
+                         + $"Declared access:{Environment.NewLine}{permissions}{Environment.NewLine}{Environment.NewLine}"
+                         + "Extensions can run code on webpages and may read or change site data according to their permissions. Install only extensions you trust.";
+            if (MessageBox.Show(this, prompt, "Review extension access", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+
+            ExtensionManagerStatusText.Text = "Copying and installing extension…";
+            managedFolder = BrowserExtensionImportService.CopyToManagedFolder(dialog.FolderName);
+            var extension = await Browser.CoreWebView2.Profile.AddBrowserExtensionAsync(managedFolder);
+            installed = true;
+            try
+            {
+                BrowserExtensionImportService.RememberSource(extension.Id, managedFolder);
+            }
+            catch (Exception exception)
+            {
+                ExtensionManagerStatusText.Text = $"'{extension.Name}' installed, but its cleanup record could not be saved: {exception.Message}";
+            }
+
+            await RefreshBrowserExtensionsAsync();
+            BrowserExtensionList.SelectedItem = _browserExtensions.FirstOrDefault(item => item.Id == extension.Id);
+            ExtensionManagerStatusText.Text = $"'{extension.Name}' is installed and enabled. Reload a website if it was already open.";
+        }
+        catch (Exception exception)
+        {
+            if (managedFolder is not null && !installed) BrowserExtensionImportService.DiscardManagedFolder(managedFolder);
+            ExtensionManagerStatusText.Text = $"Extension was not installed: {exception.Message}";
+        }
+    }
+
+    private async void ToggleBrowserExtension_Click(object sender, RoutedEventArgs e)
+    {
+        if (BrowserExtensionList.SelectedItem is not BrowserExtensionItem item) return;
+        try
+        {
+            await item.Extension.EnableAsync(!item.IsEnabled);
+            await RefreshBrowserExtensionsAsync();
+            ExtensionManagerStatusText.Text = $"'{item.Name}' is now {(item.Extension.IsEnabled ? "enabled" : "disabled")}.";
+        }
+        catch (Exception exception)
+        {
+            ExtensionManagerStatusText.Text = $"Could not update '{item.Name}': {exception.Message}";
+        }
+    }
+
+    private async void RemoveBrowserExtension_Click(object sender, RoutedEventArgs e)
+    {
+        if (BrowserExtensionList.SelectedItem is not BrowserExtensionItem item) return;
+        if (MessageBox.Show(this, $"Remove '{item.Name}' from X-TREME PLAY'S? This takes effect immediately.",
+                "Remove browser extension", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await item.Extension.RemoveAsync();
+            var extensionName = item.Name;
+            var cleanupWarning = string.Empty;
+            try
+            {
+                BrowserExtensionImportService.ForgetAndDeleteSource(item.Id);
+            }
+            catch (Exception exception)
+            {
+                cleanupWarning = $" Extension files could not be cleaned up: {exception.Message}";
+            }
+            await RefreshBrowserExtensionsAsync();
+            ExtensionManagerStatusText.Text = $"'{extensionName}' was removed.{cleanupWarning}";
+        }
+        catch (Exception exception)
+        {
+            ExtensionManagerStatusText.Text = $"Could not remove '{item.Name}': {exception.Message}";
+        }
     }
 
     private void NavigateToService(string serviceName, string homeUrl)
@@ -275,6 +468,7 @@ public partial class ShellWindow : Window
         AudioPanel.Visibility = Visibility.Collapsed;
         SettingsPanel.Visibility = Visibility.Collapsed;
         AboutPanel.Visibility = Visibility.Collapsed;
+        ExtensionsPanel.Visibility = Visibility.Collapsed;
         BrowserPanel.Visibility = Visibility.Visible;
 
         var normalizedUrl = SettingsStore.NormalizeWebUrl(url);
@@ -1349,6 +1543,7 @@ public partial class ShellWindow : Window
         AudioPanel.Visibility = Visibility.Collapsed;
         SettingsPanel.Visibility = Visibility.Collapsed;
         AboutPanel.Visibility = Visibility.Collapsed;
+        ExtensionsPanel.Visibility = Visibility.Collapsed;
         Width = 560;
         Height = 430;
         MinWidth = 420;
