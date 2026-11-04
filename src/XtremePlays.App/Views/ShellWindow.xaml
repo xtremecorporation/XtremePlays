@@ -28,7 +28,7 @@
                 </StackPanel>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button x:Name="GoogleSignInButton" Content="Account" Click="GoogleSignIn_Click" Padding="12,7" Background="{DynamicResource PurpleTintBrush}" Foreground="{DynamicResource AccentPurpleBrush}" Margin="0,0,8,0" AutomationProperties.Name="Open Google sign-in in the app browser" />
+                <Button x:Name="GoogleSignInButton" Content="Account" Click="GoogleSignIn_Click" Padding="12,7" Background="{DynamicResource PurpleTintBrush}" Foreground="{DynamicResource AccentPurpleBrush}" Margin="0,0,8,0" AutomationProperties.Name="Open Google account sign-in in the app browser" />
                 <Border Padding="12,7" Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="12" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
                         <Ellipse x:Name="StatusDot" Width="7" Height="7" Fill="{DynamicResource AccentGreenBrush}" Margin="0,0,7,0" VerticalAlignment="Center" />
