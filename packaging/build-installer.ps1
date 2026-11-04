@@ -42,7 +42,13 @@ $restoreArguments = @('restore', $setupProject, '--configfile', (Join-Path $repo
 & dotnet @restoreArguments
 if ($LASTEXITCODE -ne 0) { throw 'Setup project restore failed.' }
 
-$setupPublishDir = Join-Path $repoRoot '.installer-staging\setup-publish'
+$setupPublishDir = Join-Path $env:TEMP "XtremePlays-Setup-Publish-$PID"
+$tempRoot = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+$setupPublishFullPath = [IO.Path]::GetFullPath($setupPublishDir)
+if (-not $setupPublishFullPath.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'The setup publish folder must remain inside the Windows temporary directory.'
+}
+if (Test-Path -LiteralPath $setupPublishFullPath) { Remove-Item -LiteralPath $setupPublishFullPath -Recurse -Force }
 $publishArguments = @('publish', $setupProject, '--configuration', 'Release', '--runtime', 'win-x64', '--self-contained', 'true', '--no-restore', '-o', $setupPublishDir) + $resourceProperties
 & dotnet @publishArguments
 if ($LASTEXITCODE -ne 0) { throw 'Setup executable publish failed.' }
@@ -52,6 +58,8 @@ if (-not (Test-Path -LiteralPath $builtSetup)) { throw 'The setup publish comple
 New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
 $payloadOutput = Join-Path $artifactDir "XtremePlays-$version-Full-Setup.exe"
 Copy-Item -LiteralPath $builtSetup -Destination $payloadOutput -Force
+$payloadItem = Get-Item -LiteralPath $payloadOutput
+Remove-Item -LiteralPath $setupPublishFullPath -Recurse -Force
 $signature = Get-AuthenticodeSignature -LiteralPath $payloadOutput
 if ($signature.Status -ne 'NotSigned') { throw "Unexpected setup signature state: $($signature.Status)." }
 $file = Get-Item -LiteralPath $payloadOutput
