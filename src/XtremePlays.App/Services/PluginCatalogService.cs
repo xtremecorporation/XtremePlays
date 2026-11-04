@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Net;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -97,6 +98,33 @@ public static class PluginCatalogService
             networkError = new IOException("The online plugin catalog and its saved copy could not be read.", exception);
         }
 
+        try
+        {
+            const string resourceName = "XtremePlays.App.plugins.catalog.json";
+            await using var stream = typeof(PluginCatalogService).Assembly.GetManifestResourceStream(resourceName)
+                                    ?? throw new FileNotFoundException("The built-in plugin catalog is missing.");
+            using var output = new MemoryStream();
+            var buffer = new byte[16 * 1024];
+            while (true)
+            {
+                var read = await stream.ReadAsync(buffer, cancellationToken);
+                if (read == 0) break;
+                if (output.Length + read > MaximumCatalogBytes)
+                    throw new InvalidDataException("The built-in plugin catalog is larger than the allowed size.");
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            }
+
+            var bytes = output.ToArray();
+            var catalog = Parse(bytes);
+            Directory.CreateDirectory(AppPaths.PluginsDirectory);
+            await File.WriteAllBytesAsync(AppPaths.PluginCatalogCachePath, bytes, cancellationToken);
+            return catalog;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+        {
+            networkError = new IOException("The online catalog, saved copy, and built-in catalog could not be read.", exception);
+        }
+
         throw new IOException("The plugin catalog could not be loaded. Check your internet connection and try again.", networkError);
     }
 
@@ -111,21 +139,33 @@ public static class PluginCatalogService
             var tag = Uri.EscapeDataString(plugin.ReleaseTag);
             var apiUrl = $"https://api.github.com/repos/xtremecorporation/XtremePlays/releases/tags/{tag}";
             using var response = await Client.GetAsync(apiUrl, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(cancellationToken));
-            if (!document.RootElement.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
-                throw new InvalidDataException("The plugin release does not contain a readable asset list.");
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                if (string.IsNullOrWhiteSpace(downloadUrl))
+                    throw new FileNotFoundException($"The package for '{plugin.Name}' is not published yet.");
+            }
+            else
+            {
+                response.EnsureSuccessStatusCode();
+                using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(cancellationToken));
+                if (!document.RootElement.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+                    throw new InvalidDataException("The plugin release does not contain a readable asset list.");
 
-            var asset = assets.EnumerateArray().FirstOrDefault(item =>
-                item.TryGetProperty("name", out var name) &&
-                string.Equals(name.GetString(), plugin.AssetName, StringComparison.Ordinal));
-            if (asset.ValueKind != JsonValueKind.Object)
-                throw new FileNotFoundException($"The package for '{plugin.Name}' is not attached to its GitHub release yet.");
-
-            downloadUrl = asset.TryGetProperty("browser_download_url", out var url) ? url.GetString() : null;
-            if (string.IsNullOrWhiteSpace(plugin.Sha256) && asset.TryGetProperty("digest", out var assetDigest) && assetDigest.ValueKind == JsonValueKind.String)
-                digest = assetDigest.GetString()?.Replace("sha256:", string.Empty, StringComparison.OrdinalIgnoreCase);
-            if (asset.TryGetProperty("size", out var sizeElement) && sizeElement.TryGetInt64(out var assetSize)) size = assetSize;
+                var asset = assets.EnumerateArray().FirstOrDefault(item =>
+                    item.TryGetProperty("name", out var name) &&
+                    string.Equals(name.GetString(), plugin.AssetName, StringComparison.Ordinal));
+                if (asset.ValueKind == JsonValueKind.Object)
+                {
+                    downloadUrl = asset.TryGetProperty("browser_download_url", out var url) ? url.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(plugin.Sha256) && asset.TryGetProperty("digest", out var assetDigest) && assetDigest.ValueKind == JsonValueKind.String)
+                        digest = assetDigest.GetString()?.Replace("sha256:", string.Empty, StringComparison.OrdinalIgnoreCase);
+                    if (asset.TryGetProperty("size", out var sizeElement) && sizeElement.TryGetInt64(out var assetSize)) size = assetSize;
+                }
+                else if (string.IsNullOrWhiteSpace(downloadUrl))
+                {
+                    throw new FileNotFoundException($"The package for '{plugin.Name}' is not attached to its GitHub release yet.");
+                }
+            }
         }
 
         if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var downloadUri) || !IsAllowedGitHubUrl(downloadUri))

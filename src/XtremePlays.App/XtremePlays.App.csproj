@@ -31,6 +31,7 @@
     <Resource Include="Assets\BrandLogo.png" />
     <Resource Include="Assets\DeveloperAvatar.jpg" />
     <Resource Include="Assets\XtremePlays.ico" />
+    <EmbeddedResource Include="..\..\plugins\catalog.json" LogicalName="XtremePlays.App.plugins.catalog.json" />
   </ItemGroup>
 
 </Project>

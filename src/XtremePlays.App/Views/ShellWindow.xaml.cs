@@ -40,6 +40,7 @@ public partial class ShellWindow : Window
     private readonly ObservableCollection<Bookmark> _bookmarks = [];
     private readonly ObservableCollection<BrowserExtensionItem> _browserExtensions = [];
     private AppPreferences _preferences = new();
+    private PluginStoreWindow? _pluginStoreWindow;
     private bool _settingsLoaded;
     private bool _browserAvailable;
     private bool _extensionSupportAvailable;
@@ -50,6 +51,8 @@ public partial class ShellWindow : Window
     private bool _musicMuted;
     private bool _voiceHotkeyRegistered;
     private bool _musicHotkeyRegistered;
+    private bool _updatePromptShown;
+    private bool _isUpdateDownloadActive;
     private bool _adBlockFilterRegistered;
     private long _blockedAdRequestCount;
     private string? _hotkeyCaptureTarget;
@@ -67,6 +70,7 @@ public partial class ShellWindow : Window
         BrowserExtensionList.ItemsSource = _browserExtensions;
         HomeSavedLinksList.ItemsSource = _bookmarks;
         _audioMeterTimer.Tick += AudioMeterTimer_Tick;
+        DownloadProgressHub.Changed += TransferProgressChanged;
         PreviewKeyDown += ShellWindow_PreviewKeyDown;
     }
 
@@ -105,6 +109,7 @@ public partial class ShellWindow : Window
             : $"Private local data folder: {AppPaths.DataDirectory}";
         _settingsLoaded = true;
         ApplyTheme(_preferences.DarkTheme);
+        UpdateQuickAudioDeviceButton();
         InitializeMuteHotkeys();
         UpdateMuteButtons();
         if (warning is not null)
@@ -123,10 +128,50 @@ public partial class ShellWindow : Window
     {
         try
         {
-            var update = await _updateService.CheckAndDownloadAsync();
-            if (update is null || _isFinishingClose) return;
+            _isUpdateDownloadActive = true;
+            TransferPanel.Visibility = Visibility.Visible;
+            TransferTitleText.Text = "Checking for app updates…";
+            TransferDetailText.Text = "The current version stays open while the update is checked.";
+            TransferProgressBar.IsIndeterminate = true;
+            TransferPercentText.Text = string.Empty;
 
-            SetStatus($"Installing version {update.Version} now. X-TREME PLAY'S will reopen automatically.");
+            var progress = new Progress<int>(percent =>
+            {
+                if (_isFinishingClose) return;
+                TransferProgressBar.IsIndeterminate = false;
+                TransferProgressBar.Value = Math.Clamp(percent, 0, 100);
+                TransferPercentText.Text = $"{Math.Clamp(percent, 0, 100)}%";
+                TransferTitleText.Text = "Downloading app update…";
+                TransferDetailText.Text = "You can keep using X-TREME PLAY'S while it downloads.";
+            });
+            var update = await _updateService.CheckAndDownloadAsync(progress);
+            if (_isFinishingClose) return;
+            if (update is null)
+            {
+                _isUpdateDownloadActive = false;
+                TransferPanel.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            TransferProgressBar.IsIndeterminate = false;
+            TransferProgressBar.Value = 100;
+            TransferPercentText.Text = "Ready";
+            TransferTitleText.Text = $"Version {update.Version} is ready";
+            TransferDetailText.Text = "Choose when to restart and install the update.";
+            SetStatus($"Version {update.Version} downloaded. Choose when to install it.");
+            _isUpdateDownloadActive = false;
+
+            if (_updatePromptShown) return;
+            _updatePromptShown = true;
+            var prompt = new UpdateReadyWindow(update.Version.ToString()) { Owner = this };
+            if (prompt.ShowDialog() != true)
+            {
+                TransferTitleText.Text = $"Update {update.Version} is ready";
+                TransferDetailText.Text = "It will install automatically the next time you open X-TREME PLAY'S.";
+                SetStatus($"Update {update.Version} is saved. It will install the next time you open the app.");
+                return;
+            }
+
             if (!_compactMode)
             {
                 _preferences.WindowWidth = Width;
@@ -143,7 +188,7 @@ public partial class ShellWindow : Window
 
             if (Browser.Source is not null) _preferences.LastUrl = Browser.Source.ToString();
             _preferences.Bookmarks = _bookmarks.Select(bookmark => new Bookmark { Title = bookmark.Title, Url = bookmark.Url }).ToList();
-            await SavePreferencesSafelyAsync();
+            if (!await SavePreferencesSafelyAsync()) return;
 
             _audioMeterTimer.Stop();
             _audioMixingRouter.Stop();
@@ -154,7 +199,39 @@ public partial class ShellWindow : Window
         catch (Exception exception)
         {
             _isFinishingClose = false;
+            _isUpdateDownloadActive = false;
+            TransferPanel.Visibility = Visibility.Collapsed;
             SetStatus($"Could not check or apply updates: {exception.Message}. The app will retry next time.", isError: true);
+        }
+    }
+
+    private void TransferProgressChanged(DownloadProgressUpdate? update)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            _ = Dispatcher.BeginInvoke(() => TransferProgressChanged(update));
+            return;
+        }
+
+        if (_isUpdateDownloadActive) return;
+        if (update is null)
+        {
+            TransferPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        TransferPanel.Visibility = Visibility.Visible;
+        TransferTitleText.Text = update.Title;
+        TransferDetailText.Text = update.Detail;
+        TransferProgressBar.IsIndeterminate = update.Percent is null;
+        if (update.Percent is { } percent)
+        {
+            TransferProgressBar.Value = percent;
+            TransferPercentText.Text = $"{percent}%";
+        }
+        else
+        {
+            TransferPercentText.Text = string.Empty;
         }
     }
 
@@ -249,6 +326,83 @@ public partial class ShellWindow : Window
                 break;
             case "Settings": ShowPanel(SettingsPanel); SetStatus("Settings"); break;
             case "About": ShowPanel(AboutPanel); SetStatus("About X-TREME PLAY'S"); break;
+        }
+    }
+
+    private void GoogleSignIn_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_browserAvailable)
+        {
+            SetStatus("Start the embedded browser before opening Google sign-in.", isError: true);
+            return;
+        }
+
+        NavigateTo("https://accounts.google.com/");
+        SetStatus("Google opened in X-TREME PLAY'S browser profile. Google may block account sign-in in embedded browsers.");
+    }
+
+    private async void QuickAudioDevices_Click(object sender, RoutedEventArgs e)
+    {
+        var wasSharing = _audioMixingRouter.IsRunning;
+        if (wasSharing)
+        {
+            _audioMeterTimer.Stop();
+            _audioMixingRouter.Stop();
+        }
+
+        try
+        {
+            var endpoints = await AudioEndpointDiscovery.DiscoverAsync();
+            var microphones = endpoints.Where(endpoint => endpoint.Direction == "Capture").ToArray();
+            var outputs = endpoints.Where(endpoint => endpoint.Direction == "Render" && !IsVirtualAudioOutput(endpoint)).ToArray();
+            if (microphones.Length == 0)
+            {
+                SetStatus("Windows did not find an active microphone.", isError: true);
+                return;
+            }
+
+            var selectedMicrophones = _preferences.SelectedMicrophoneIds.Count > 0
+                ? _preferences.SelectedMicrophoneIds
+                : _preferences.SelectedMicrophoneId is { } savedMicrophone ? [savedMicrophone] : [];
+            if (selectedMicrophones.Count == 0 && AudioEndpointDiscovery.GetDefaultEndpointId(DataFlow.Capture, Role.Communications) is { } defaultMicrophone)
+                selectedMicrophones = [defaultMicrophone];
+
+            var selectedOutputs = _preferences.MonitorOutputIds;
+            if (selectedOutputs.Count == 0 && AudioEndpointDiscovery.GetDefaultEndpointId(DataFlow.Render, Role.Multimedia) is { } defaultOutput
+                && outputs.Any(endpoint => string.Equals(endpoint.Id, defaultOutput, StringComparison.Ordinal)))
+                selectedOutputs = [defaultOutput];
+
+            var dialog = new AudioDevicePickerWindow(microphones, outputs, selectedMicrophones, selectedOutputs) { Owner = this };
+            if (dialog.ShowDialog() == true)
+            {
+                var previousMicrophones = _preferences.SelectedMicrophoneIds.ToList();
+                var previousMonitorOutputs = _preferences.MonitorOutputIds.ToList();
+                _preferences.SelectedMicrophoneIds = dialog.SelectedMicrophoneIds.ToList();
+                _preferences.SelectedMicrophoneId = _preferences.SelectedMicrophoneIds.FirstOrDefault();
+                _preferences.MonitorOutputIds = dialog.SelectedOutputIds.ToList();
+                if (!await SavePreferencesSafelyAsync())
+                {
+                    _preferences.SelectedMicrophoneIds = previousMicrophones;
+                    _preferences.SelectedMicrophoneId = previousMicrophones.FirstOrDefault();
+                    _preferences.MonitorOutputIds = previousMonitorOutputs;
+                }
+                else
+                {
+                    SetStatus($"Saved {dialog.SelectedMicrophoneIds.Count} microphone(s) and {dialog.SelectedOutputIds.Count} listening output(s).");
+                }
+            }
+
+            await RefreshAudioDevicesAsync();
+            UpdateQuickAudioDeviceButton();
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Could not open audio devices: {exception.Message}", isError: true);
+        }
+        finally
+        {
+            if (wasSharing && !_isFinishingClose)
+                await RestartAudioSharingAsync();
         }
     }
 
@@ -356,6 +510,12 @@ public partial class ShellWindow : Window
 
     private void ShowPluginStore()
     {
+        if (_pluginStoreWindow is { IsVisible: true })
+        {
+            _pluginStoreWindow.Activate();
+            return;
+        }
+
         var profile = _browserAvailable && _extensionSupportAvailable ? Browser.CoreWebView2.Profile : null;
         var window = new PluginStoreWindow(
             profile,
@@ -371,7 +531,12 @@ public partial class ShellWindow : Window
         {
             Owner = this
         };
-        window.ShowDialog();
+        _pluginStoreWindow = window;
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_pluginStoreWindow, window)) _pluginStoreWindow = null;
+        };
+        window.Show();
         SetStatus("Plugins");
     }
 
@@ -1246,6 +1411,7 @@ public partial class ShellWindow : Window
             AudioOutputSelector.IsEnabled = true;
             RefreshAudioDevicesButton.IsEnabled = true;
             UpdateAudioControls();
+            UpdateQuickAudioDeviceButton();
         }
         catch (Exception exception) when (exception is COMException or InvalidOperationException or UnauthorizedAccessException)
         {
@@ -1255,6 +1421,7 @@ public partial class ShellWindow : Window
             RefreshAudioDevicesButton.IsEnabled = true;
             AudioRoutingStatus.Text = "Could not load audio devices. Refresh to try again.";
             UpdateAudioControls();
+            UpdateQuickAudioDeviceButton();
         }
         catch (Exception exception)
         {
@@ -1264,6 +1431,7 @@ public partial class ShellWindow : Window
             RefreshAudioDevicesButton.IsEnabled = true;
             AudioRoutingStatus.Text = "Could not load audio devices. Refresh to try again.";
             UpdateAudioControls();
+            UpdateQuickAudioDeviceButton();
         }
     }
 
@@ -1294,14 +1462,18 @@ public partial class ShellWindow : Window
 
         var previousId = _preferences.SelectedMicrophoneId;
         _preferences.SelectedMicrophoneId = selected.Id;
+        var previousMicrophoneIds = _preferences.SelectedMicrophoneIds.ToList();
+        _preferences.SelectedMicrophoneIds = [selected.Id];
         if (!await SavePreferencesSafelyAsync())
         {
             _preferences.SelectedMicrophoneId = previousId;
+            _preferences.SelectedMicrophoneIds = previousMicrophoneIds;
             UpdateAudioControls();
             return;
         }
 
         UpdateAudioControls();
+        UpdateQuickAudioDeviceButton();
         AudioRoutingStatus.Text = $"Saved microphone: {selected.Name}. Sharing is still stopped.";
         SetStatus("Microphone choice saved. Start sharing when you are ready.");
     }
@@ -1337,7 +1509,8 @@ public partial class ShellWindow : Window
             }
             else
             {
-                AudioRoutingStatus.Text = $"Ready: {microphone.Name} + X-TREME PLAY'S music → {output.Name}. Press Start sharing.";
+        AudioRoutingStatus.Text = $"Ready: {_preferences.SelectedMicrophoneIds.Count} microphone(s) + X-TREME PLAY'S music → {output.Name}" +
+                                  (_preferences.MonitorOutputIds.Count > 0 ? $" and {_preferences.MonitorOutputIds.Count} listening device(s). Press Start sharing." : ". Press Start sharing.");
             }
         }
     }
@@ -1360,16 +1533,56 @@ public partial class ShellWindow : Window
         }
 
         _preferences.SelectedMicrophoneId = microphone.Id;
+        if (_preferences.SelectedMicrophoneIds.Count == 0 || !_preferences.SelectedMicrophoneIds.Contains(microphone.Id, StringComparer.Ordinal))
+            _preferences.SelectedMicrophoneIds = [microphone.Id];
         _preferences.SelectedAudioOutputId = output.Id;
         if (!await SavePreferencesSafelyAsync()) return;
+
+        await StartAudioSharingCoreAsync();
+    }
+
+    private async Task RestartAudioSharingAsync()
+    {
+        if (!_browserAvailable || AudioMicrophoneSelector.SelectedItem is not AudioEndpointInfo { Direction: "Capture" }
+            || AudioOutputSelector.SelectedItem is not AudioEndpointInfo output || !IsVirtualAudioOutput(output))
+        {
+            SetStatus("Choose a microphone and VB-CABLE output before restarting Audio Sharing.", isError: true);
+            UpdateAudioControls();
+            return;
+        }
+
+        await StartAudioSharingCoreAsync();
+    }
+
+    private async Task StartAudioSharingCoreAsync()
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
+        {
+            AudioRoutingStatus.Text = "Voice and music routing requires Windows 10 version 2004 or later.";
+            return;
+        }
+
+        if (AudioOutputSelector.SelectedItem is not AudioEndpointInfo output)
+            return;
+
+        var microphoneIds = _preferences.SelectedMicrophoneIds.Count > 0
+            ? _preferences.SelectedMicrophoneIds
+            : AudioMicrophoneSelector.SelectedItem is AudioEndpointInfo microphone ? [microphone.Id] : [];
+        if (microphoneIds.Count == 0)
+        {
+            AudioRoutingStatus.Text = "Choose at least one microphone before starting.";
+            UpdateAudioControls();
+            return;
+        }
 
         AudioRoutingStatus.Text = "Starting microphone and browser audio capture…";
         StartAudioRoutingButton.IsEnabled = false;
         try
         {
             await _audioMixingRouter.StartAsync(
-                microphone.Id,
+                microphoneIds,
                 output.Id,
+                _preferences.MonitorOutputIds,
                 Browser.CoreWebView2.BrowserProcessId,
                 (float)(VoiceGainSlider.Value / 100),
                 (float)(MusicGainSlider.Value / 100),
@@ -1378,7 +1591,9 @@ public partial class ShellWindow : Window
                 _musicMuted);
             UpdateAudioControls();
             _audioMeterTimer.Start();
-            AudioRoutingStatus.Text = $"SHARING ON · {microphone.Name} + browser music → {output.Name}. Press Stop to end microphone capture.";
+            AudioRoutingStatus.Text = $"SHARING ON · {microphoneIds.Count} microphone(s) + browser music → {output.Name}" +
+                                      (_preferences.MonitorOutputIds.Count > 0 ? $" + {_preferences.MonitorOutputIds.Count} listening device(s)." : ".") +
+                                      " Press Stop to end microphone capture.";
             SetStatus("Audio sharing is on. Your microphone and browser music are mixed to the selected call output.");
         }
         catch (Exception exception)
@@ -1388,6 +1603,15 @@ public partial class ShellWindow : Window
             AudioRoutingStatus.Text = $"Could not start audio sharing: {exception.Message}";
             SetStatus("Audio sharing could not start. Check the microphone and virtual cable, then retry.", isError: true);
         }
+    }
+
+    private void UpdateQuickAudioDeviceButton()
+    {
+        var inputCount = Math.Max(_preferences.SelectedMicrophoneIds.Count, _preferences.SelectedMicrophoneId is null ? 0 : 1);
+        var outputCount = _preferences.MonitorOutputIds.Count;
+        QuickAudioDevicesButton.Content = inputCount == 0
+            ? "Choose audio devices"
+            : $"Audio devices · {inputCount} input · {outputCount} output";
     }
 
     private void StopAudioRouting_Click(object sender, RoutedEventArgs e)
@@ -1817,6 +2041,7 @@ public partial class ShellWindow : Window
             DisableAdBlocking();
             _adBlockService.Dispose();
             UnregisterMuteHotkeys();
+            DownloadProgressHub.Changed -= TransferProgressChanged;
             _windowSource?.RemoveHook(WindowMessageHook);
             _windowSource = null;
             return;
@@ -1865,6 +2090,8 @@ public partial class ShellWindow : Window
                 LastUrl = _preferences.LastUrl,
                 SelectedMicrophoneId = _preferences.SelectedMicrophoneId,
                 SelectedAudioOutputId = _preferences.SelectedAudioOutputId,
+                SelectedMicrophoneIds = _preferences.SelectedMicrophoneIds.ToList(),
+                MonitorOutputIds = _preferences.MonitorOutputIds.ToList(),
                 VoiceVolumePercent = _preferences.VoiceVolumePercent,
                 MusicVolumePercent = _preferences.MusicVolumePercent,
                 MasterVolumePercent = _preferences.MasterVolumePercent,

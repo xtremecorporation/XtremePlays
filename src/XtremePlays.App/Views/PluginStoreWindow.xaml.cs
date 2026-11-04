@@ -175,8 +175,15 @@ public partial class PluginStoreWindow : Window
                     await _beforeNativePluginRemoval();
 
                 PluginStatusText.Text = $"Preparing {card.Entry.Name}…";
-                var progress = new Progress<string>(message => PluginStatusText.Text = message);
-                await PluginPackageInstaller.InstallAsync(card.Entry, _profile, ConfirmExtensionAccess, progress);
+                DownloadProgressHub.Report($"Preparing {card.Entry.Name}…", "Checking the package and verifying its source.");
+                var progress = new Progress<string>(message =>
+                {
+                    PluginStatusText.Text = message;
+                    DownloadProgressHub.Report($"Plugin · {card.Entry.Name}", message);
+                });
+                var downloadProgress = new Progress<int>(percent =>
+                    DownloadProgressHub.Report($"Downloading {card.Entry.Name}…", "The package is being checked before it is installed.", percent));
+                await PluginPackageInstaller.InstallAsync(card.Entry, _profile, ConfirmExtensionAccess, progress, downloadProgress);
                 PluginStatusText.Text = $"{card.Entry.Name} is installed. You can manage it from this Plugins window.";
             }
 
@@ -194,6 +201,7 @@ public partial class PluginStoreWindow : Window
         }
         finally
         {
+            DownloadProgressHub.Clear();
             card.Busy = false;
         }
     }

@@ -11,25 +11,26 @@ public sealed class AudioMixingRouter : IDisposable
     public const int Channels = 2;
     public static WaveFormat MixFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, Channels);
 
-    private readonly FloatAudioBuffer _voiceBuffer = new(SampleRate * Channels);
-    private readonly FloatAudioBuffer _musicBuffer = new(SampleRate * Channels);
+    private readonly List<FloatAudioBuffer> _voiceBuffers = [];
+    private readonly List<FloatAudioBuffer> _musicBuffers = [];
+    private readonly List<MixingWaveProvider> _mixers = [];
+    private readonly List<MMDevice> _microphoneDevices = [];
+    private readonly List<MMDevice> _outputDevices = [];
+    private readonly List<WasapiRecorder> _microphoneRecorders = [];
+    private readonly List<WasapiPlayer> _players = [];
     private MMDeviceEnumerator? _deviceEnumerator;
-    private MMDevice? _microphoneDevice;
-    private MMDevice? _outputDevice;
-    private WasapiRecorder? _microphoneRecorder;
     private WasapiRecorder? _browserAudioRecorder;
-    private WasapiPlayer? _player;
-    private MixingWaveProvider? _mixingWaveProvider;
 
     public bool IsRunning { get; private set; }
-    public float VoiceLevel => _mixingWaveProvider?.VoiceLevel ?? 0;
-    public float MusicLevel => _mixingWaveProvider?.MusicLevel ?? 0;
-    public float OutputLevel => _mixingWaveProvider?.OutputLevel ?? 0;
+    public float VoiceLevel => _mixers.FirstOrDefault()?.VoiceLevel ?? 0;
+    public float MusicLevel => _mixers.FirstOrDefault()?.MusicLevel ?? 0;
+    public float OutputLevel => _mixers.FirstOrDefault()?.OutputLevel ?? 0;
 
     [SupportedOSPlatform("windows10.0.19041")]
     public async Task StartAsync(
-        string microphoneId,
-        string outputId,
+        IReadOnlyCollection<string> microphoneIds,
+        string callOutputId,
+        IReadOnlyCollection<string> monitorOutputIds,
         uint browserProcessId,
         float voiceGain,
         float musicGain,
@@ -41,26 +42,63 @@ public sealed class AudioMixingRouter : IDisposable
 
         try
         {
+            var selectedMicrophoneIds = microphoneIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.Ordinal).ToArray();
+            if (selectedMicrophoneIds.Length == 0)
+                throw new InvalidOperationException("Choose at least one active microphone for the voice input.");
+
+            var selectedOutputIds = new[] { callOutputId }
+                .Concat(monitorOutputIds.Where(id => !string.IsNullOrWhiteSpace(id)))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (selectedOutputIds.Length == 0)
+                throw new InvalidOperationException("Choose an output device for the mixed audio.");
+
             _deviceEnumerator = new MMDeviceEnumerator();
-            _microphoneDevice = _deviceEnumerator.GetDevice(microphoneId);
-            _outputDevice = _deviceEnumerator.GetDevice(outputId);
-            if (_microphoneDevice.DataFlow != DataFlow.Capture)
+            foreach (var microphoneId in selectedMicrophoneIds)
             {
-                throw new InvalidOperationException("Choose a Capture microphone for the voice input.");
+                var microphone = _deviceEnumerator.GetDevice(microphoneId);
+                if (microphone.DataFlow != DataFlow.Capture)
+                {
+                    microphone.Dispose();
+                    throw new InvalidOperationException("Each selected voice input must be a Capture microphone.");
+                }
+                _microphoneDevices.Add(microphone);
             }
 
-            if (_outputDevice.DataFlow != DataFlow.Render)
+            foreach (var outputId in selectedOutputIds)
             {
-                throw new InvalidOperationException("Choose a virtual playback endpoint for the mixed output.");
+                var output = _deviceEnumerator.GetDevice(outputId);
+                if (output.DataFlow != DataFlow.Render)
+                {
+                    output.Dispose();
+                    throw new InvalidOperationException("Each selected audio output must be a Render device.");
+                }
+                _outputDevices.Add(output);
             }
 
-            _voiceBuffer.Clear();
-            _musicBuffer.Clear();
-            _microphoneRecorder = new WasapiRecorderBuilder()
-                .WithDevice(_microphoneDevice)
-                .WithFormat(MixFormat)
-                .WithBufferLength(50)
-                .Build();
+            foreach (var _ in _outputDevices)
+            {
+                _voiceBuffers.Add(new FloatAudioBuffer(SampleRate * Channels));
+                _musicBuffers.Add(new FloatAudioBuffer(SampleRate * Channels));
+            }
+
+            foreach (var microphone in _microphoneDevices)
+            {
+                var recorder = new WasapiRecorderBuilder()
+                    .WithDevice(microphone)
+                    .WithFormat(MixFormat)
+                    .WithBufferLength(50)
+                    .Build();
+                // Voice goes to the virtual call cable only. Local monitor speakers
+                // should play the browser music without feeding the microphone back.
+                var callVoiceBuffer = _voiceBuffers[0];
+                recorder.DataAvailable += (buffer, _, _, _) =>
+                {
+                    var samples = MemoryMarshal.Cast<byte, float>(buffer);
+                    callVoiceBuffer.Write(samples);
+                };
+                _microphoneRecorders.Add(recorder);
+            }
 
             _browserAudioRecorder = await new WasapiRecorderBuilder()
                 .WithFormat(MixFormat)
@@ -68,23 +106,30 @@ public sealed class AudioMixingRouter : IDisposable
                 .WithProcessLoopback(browserProcessId, ProcessLoopbackMode.IncludeTargetProcessTree)
                 .BuildAsync();
 
-            _mixingWaveProvider = new MixingWaveProvider(_voiceBuffer, _musicBuffer);
-            _mixingWaveProvider.SetGains(voiceGain, musicGain, masterGain);
-            _mixingWaveProvider.SetMutes(voiceMuted, musicMuted);
-            _player = new WasapiPlayerBuilder()
-                .WithDevice(_outputDevice)
-                .WithSharedMode()
-                .WithLatency(100)
-                .Build();
-            _player.Init(_mixingWaveProvider);
+            for (var index = 0; index < _outputDevices.Count; index++)
+            {
+                var mixer = new MixingWaveProvider(_voiceBuffers[index], _musicBuffers[index]);
+                mixer.SetGains(voiceGain, musicGain, masterGain);
+                mixer.SetMutes(voiceMuted, musicMuted);
+                var player = new WasapiPlayerBuilder()
+                    .WithDevice(_outputDevices[index])
+                    .WithSharedMode()
+                    .WithLatency(100)
+                    .Build();
+                player.Init(mixer);
+                _mixers.Add(mixer);
+                _players.Add(player);
+            }
 
-            _microphoneRecorder.DataAvailable += (buffer, _, _, _) =>
-                _voiceBuffer.Write(MemoryMarshal.Cast<byte, float>(buffer));
+            var musicTargets = _musicBuffers.ToArray();
             _browserAudioRecorder.DataAvailable += (buffer, _, _, _) =>
-                _musicBuffer.Write(MemoryMarshal.Cast<byte, float>(buffer));
+            {
+                var samples = MemoryMarshal.Cast<byte, float>(buffer);
+                foreach (var target in musicTargets) target.Write(samples);
+            };
 
-            _player.Play();
-            _microphoneRecorder.StartRecording();
+            foreach (var player in _players) player.Play();
+            foreach (var recorder in _microphoneRecorders) recorder.StartRecording();
             _browserAudioRecorder.StartRecording();
             IsRunning = true;
         }
@@ -95,35 +140,41 @@ public sealed class AudioMixingRouter : IDisposable
         }
     }
 
-    public void SetGains(float voiceGain, float musicGain, float masterGain) =>
-        _mixingWaveProvider?.SetGains(voiceGain, musicGain, masterGain);
+    public void SetGains(float voiceGain, float musicGain, float masterGain)
+    {
+        foreach (var mixer in _mixers) mixer.SetGains(voiceGain, musicGain, masterGain);
+    }
 
-    public void SetMutes(bool voiceMuted, bool musicMuted) =>
-        _mixingWaveProvider?.SetMutes(voiceMuted, musicMuted);
+    public void SetMutes(bool voiceMuted, bool musicMuted)
+    {
+        foreach (var mixer in _mixers) mixer.SetMutes(voiceMuted, musicMuted);
+    }
 
     public void Stop()
     {
         IsRunning = false;
-        try { _microphoneRecorder?.StopRecording(); } catch { }
+        foreach (var recorder in _microphoneRecorders)
+            try { recorder.StopRecording(); } catch { }
         try { _browserAudioRecorder?.StopRecording(); } catch { }
-        try { _player?.Stop(); } catch { }
+        foreach (var player in _players)
+            try { player.Stop(); } catch { }
 
-        TryDispose(_microphoneRecorder);
+        foreach (var recorder in _microphoneRecorders) TryDispose(recorder);
         TryDispose(_browserAudioRecorder);
-        TryDispose(_player);
-        TryDispose(_microphoneDevice);
-        TryDispose(_outputDevice);
+        foreach (var player in _players) TryDispose(player);
+        foreach (var device in _microphoneDevices) TryDispose(device);
+        foreach (var device in _outputDevices) TryDispose(device);
         TryDispose(_deviceEnumerator);
 
-        _microphoneRecorder = null;
+        _microphoneRecorders.Clear();
         _browserAudioRecorder = null;
-        _player = null;
-        _microphoneDevice = null;
-        _outputDevice = null;
+        _players.Clear();
+        _microphoneDevices.Clear();
+        _outputDevices.Clear();
         _deviceEnumerator = null;
-        _mixingWaveProvider = null;
-        _voiceBuffer.Clear();
-        _musicBuffer.Clear();
+        _mixers.Clear();
+        _voiceBuffers.Clear();
+        _musicBuffers.Clear();
     }
 
     public void Dispose() => Stop();

@@ -72,6 +72,12 @@ public sealed class SettingsStore
         result.SelectedAudioOutputId = string.IsNullOrWhiteSpace(result.SelectedAudioOutputId)
             ? null
             : result.SelectedAudioOutputId.Trim()[..Math.Min(result.SelectedAudioOutputId.Trim().Length, 512)];
+        result.SelectedMicrophoneIds = NormalizeEndpointIds(result.SelectedMicrophoneIds);
+        if (result.SelectedMicrophoneIds.Count == 0 && result.SelectedMicrophoneId is not null)
+            result.SelectedMicrophoneIds.Add(result.SelectedMicrophoneId);
+        if (result.SelectedMicrophoneIds.Count > 0)
+            result.SelectedMicrophoneId = result.SelectedMicrophoneIds[0];
+        result.MonitorOutputIds = NormalizeEndpointIds(result.MonitorOutputIds);
         result.VoiceVolumePercent = Math.Clamp(result.VoiceVolumePercent, 0, 200);
         result.MusicVolumePercent = Math.Clamp(result.MusicVolumePercent, 0, 200);
         result.MasterVolumePercent = Math.Clamp(result.MasterVolumePercent, 0, 200);
@@ -82,6 +88,13 @@ public sealed class SettingsStore
             .ToList();
         return result;
     }
+
+    private static List<string> NormalizeEndpointIds(IEnumerable<string>? values) => (values ?? [])
+        .Where(value => !string.IsNullOrWhiteSpace(value))
+        .Select(value => value.Trim()[..Math.Min(value.Trim().Length, 512)])
+        .Distinct(StringComparer.Ordinal)
+        .Take(12)
+        .ToList();
 
     public static string SanitizeTitle(string? title) => string.IsNullOrWhiteSpace(title) ? string.Empty : title.Trim()[..Math.Min(title.Trim().Length, 80)];
 

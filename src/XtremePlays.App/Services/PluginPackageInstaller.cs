@@ -48,6 +48,7 @@ public static class PluginPackageInstaller
         CoreWebView2Profile? profile,
         Func<ExtensionManifestInfo, bool>? confirmExtensionAccess = null,
         IProgress<string>? progress = null,
+        IProgress<int>? downloadProgress = null,
         CancellationToken cancellationToken = default)
     {
         await InstallLock.WaitAsync(cancellationToken);
@@ -70,7 +71,7 @@ public static class PluginPackageInstaller
             Directory.CreateDirectory(AppPaths.PluginsDirectory);
             Directory.CreateDirectory(InstalledRoot);
             downloadPath = Path.Combine(AppPaths.PluginsDirectory, $"download-{Guid.NewGuid():N}.zip");
-            await DownloadAsync(package, downloadPath, progress, cancellationToken);
+            await DownloadAsync(package, downloadPath, progress, downloadProgress, cancellationToken);
 
             stagingDirectory = Path.Combine(AppPaths.PluginsDirectory, $"staging-{Guid.NewGuid():N}");
             Directory.CreateDirectory(stagingDirectory);
@@ -229,7 +230,7 @@ public static class PluginPackageInstaller
         }
     }
 
-    private static async Task DownloadAsync(ResolvedPluginPackage package, string destination, IProgress<string>? progress, CancellationToken cancellationToken)
+    private static async Task DownloadAsync(ResolvedPluginPackage package, string destination, IProgress<string>? progress, IProgress<int>? downloadProgress, CancellationToken cancellationToken)
     {
         using var response = await DownloadClient.GetAsync(package.DownloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -240,19 +241,32 @@ public static class PluginPackageInstaller
 
         progress?.Report("Downloading the selected plugin from GitHub…");
         await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var contentLength = response.Content.Headers.ContentLength;
+        long downloadedBytes = 0;
+        var lastPercent = -1;
         await using (var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 128 * 1024, useAsync: true))
         {
             var buffer = new byte[128 * 1024];
-            long total = 0;
             while (true)
             {
                 var read = await input.ReadAsync(buffer, cancellationToken);
                 if (read == 0) break;
-                total += read;
-                if (total > MaximumPackageBytes) throw new InvalidDataException("The plugin package is larger than the 220 MB install limit.");
+                downloadedBytes += read;
+                if (downloadedBytes > MaximumPackageBytes) throw new InvalidDataException("The plugin package is larger than the 220 MB install limit.");
                 await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                if (contentLength is > 0)
+                {
+                    var percent = (int)Math.Clamp(downloadedBytes * 100 / contentLength.Value, 0, 100);
+                    if (percent != lastPercent)
+                    {
+                        lastPercent = percent;
+                        downloadProgress?.Report(percent);
+                    }
+                }
             }
         }
+
+        downloadProgress?.Report(100);
 
         await using var packageStream = new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, useAsync: true);
         var actualHash = Convert.ToHexString(await SHA256.HashDataAsync(packageStream, cancellationToken));
