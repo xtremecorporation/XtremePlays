@@ -15,8 +15,6 @@ public sealed class AppPreferences
     public int MusicVolumePercent { get; set; } = 100;
     public int MasterVolumePercent { get; set; } = 100;
     public bool AdBlockingEnabled { get; set; }
-    public string SpotifyClientId { get; set; } = string.Empty;
-    public string YouTubeClientId { get; set; } = string.Empty;
     public string VoiceMuteHotkey { get; set; } = "Ctrl+Alt+M";
     public string MusicMuteHotkey { get; set; } = "Ctrl+Alt+U";
     public List<Bookmark> Bookmarks { get; set; } = DefaultBookmarks();

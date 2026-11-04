@@ -74,7 +74,7 @@
                         <StackPanel>
                             <TextBlock Text="WELCOME TO YOUR LISTENING SPACE" Foreground="{DynamicResource AccentPurpleBrush}" FontSize="11" FontWeight="Bold" />
                             <TextBlock Text="Your music, all in one place." Foreground="{DynamicResource MainTextBrush}" FontSize="30" FontWeight="SemiBold" Margin="0,5,0,0" />
-                            <TextBlock Text="Sync saved tracks from Spotify and videos in your YouTube playlists. Open any item at its original music service." Foreground="{DynamicResource MutedTextBrush}" FontSize="13" LineHeight="21" TextWrapping="Wrap" Margin="0,8,0,16" MaxWidth="680" />
+                            <TextBlock Text="Save song, album, or playlist links from your favorite services. Sign in on each website in your private browser profile." Foreground="{DynamicResource MutedTextBrush}" FontSize="13" LineHeight="21" TextWrapping="Wrap" Margin="0,8,0,16" MaxWidth="680" />
                             <WrapPanel Margin="0,0,0,18">
                                 <Button Tag="YouTube" Click="NavigationItem_Click" Background="{DynamicResource PurpleTintBrush}" Margin="0,0,8,0" AutomationProperties.Name="Open YouTube"><StackPanel Orientation="Horizontal"><TextBlock Text="▶" Foreground="{DynamicResource AccentDangerBrush}" Margin="0,0,7,0" /><TextBlock Text="YouTube" /></StackPanel></Button>
                                 <Button Tag="YouTube Music" Click="NavigationItem_Click" Background="{DynamicResource SecondarySurfaceBrush}" Margin="0,0,8,0" AutomationProperties.Name="Open YouTube Music"><StackPanel Orientation="Horizontal"><TextBlock Text="♫" Foreground="{DynamicResource AccentPurpleBrush}" Margin="0,0,7,0" /><TextBlock Text="YouTube Music" /></StackPanel></Button>
@@ -87,32 +87,31 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                         <StackPanel>
                                             <TextBlock Text="YOUR LIBRARY" Foreground="{DynamicResource AccentCyanBrush}" FontSize="10" FontWeight="Bold" />
-                                            <TextBlock Text="Continue listening" Foreground="{DynamicResource MainTextBrush}" FontSize="21" FontWeight="SemiBold" Margin="0,3,0,0" />
+                                            <TextBlock Text="Your saved links" Foreground="{DynamicResource MainTextBrush}" FontSize="21" FontWeight="SemiBold" Margin="0,3,0,0" />
                                         </StackPanel>
                                         <WrapPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                            <Button x:Name="ConnectSpotifyButton" Content="Connect Spotify" Click="ConnectSpotify_Click" Background="{DynamicResource AccentPurpleBrush}" Foreground="White" Margin="0,0,6,0" />
-                                            <Button x:Name="ConnectYouTubeButton" Content="Connect YouTube" Click="ConnectYouTube_Click" Background="{DynamicResource AccentPurpleBrush}" Foreground="White" Margin="0,0,6,0" />
-                                            <Button x:Name="SyncMusicButton" Content="Sync" Click="SyncMusic_Click" Background="{DynamicResource SubtleBlueBrush}" />
+                                            <Button Content="＋ Add link" Click="AddLibraryLink_Click" Background="{DynamicResource AccentPurpleBrush}" Foreground="White" Margin="0,0,6,0" />
+                                            <Button Tag="Bookmarks" Content="Manage library" Click="NavigationItem_Click" Background="{DynamicResource SubtleBlueBrush}" />
                                         </WrapPanel>
                                     </Grid>
-                                    <TextBlock x:Name="MusicSyncStatusText" Text="Connect an account to sync your saved music metadata." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
-                                    <ListBox x:Name="HomeTrackList" Height="300" Background="Transparent" BorderThickness="0" Padding="0"
+                                    <TextBlock Text="Add a song or playlist URL here, or use ‘＋ Save this page’ while browsing. Links stay on this PC; no music account API connection is needed." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                    <ListBox x:Name="HomeSavedLinksList" Height="300" Background="Transparent" BorderThickness="0" Padding="0"
                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                             AutomationProperties.Name="Synced music library">
+                                             AutomationProperties.Name="Saved music and website links">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <Button Tag="{Binding}" Click="OpenMusicTrack_Click" Background="Transparent" Padding="6" Margin="0,1" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Open this item on its music provider">
+                                                <Button Tag="{Binding}" Click="OpenSavedLink_Click" Background="Transparent" Padding="6" Margin="0,1" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Open saved music link">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions><ColumnDefinition Width="48" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                                         <Border Width="40" Height="40" CornerRadius="9" Background="{DynamicResource PurpleTintBrush}" ClipToBounds="True">
-                                                            <Image Source="{Binding ArtworkUrl}" Stretch="UniformToFill" />
+                                                            <TextBlock Text="{Binding ProviderGlyph}" Foreground="{DynamicResource AccentPurpleBrush}" FontSize="19" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                         <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding Title}" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                                            <TextBlock Text="{Binding Artist}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" />
+                                                            <TextBlock Text="{Binding UrlHost}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" />
                                                         </StackPanel>
                                                         <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="8,4" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Provider}" Foreground="{DynamicResource AccentCyanBrush}" FontSize="10" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding ProviderLabel}" Foreground="{DynamicResource AccentCyanBrush}" FontSize="10" FontWeight="SemiBold" />
                                                         </Border>
                                                     </Grid>
                                                 </Button>
@@ -122,7 +121,7 @@
                                 </StackPanel>
                             </Border>
                             <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="11" Padding="12" Margin="0,12,0,0">
-                                <TextBlock Text="The app syncs metadata only. Listening happens on the provider website. YouTube Music recommendations and private library data may not be available through the official YouTube API." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" />
+                                <TextBlock Text="Playback and sign-in happen on YouTube, YouTube Music, Spotify, or the saved link’s website. X-TREME PLAY'S keeps only the links you choose to save." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" />
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
@@ -267,28 +266,6 @@
                             <CheckBox x:Name="DarkThemeCheckBox" Content="Use dark theme" Foreground="{DynamicResource SecondaryTextBrush}" Checked="PreferencesChanged" Unchecked="PreferencesChanged" Padding="2,6" />
                             <CheckBox x:Name="AlwaysOnTopCheckBox" Content="Keep this window above other windows" Foreground="{DynamicResource SecondaryTextBrush}" Checked="PreferencesChanged" Unchecked="PreferencesChanged" Padding="2,6" />
                             <Button Content="Open compact window" Click="ToggleCompactMode_Click" HorizontalAlignment="Left" Background="{DynamicResource SubtleBlueBrush}" Margin="0,7,0,0" />
-                        </StackPanel></Border>
-                        <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="17" Margin="0,0,0,10"><StackPanel>
-                            <TextBlock Text="Music account sync" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,5" />
-                            <TextBlock Text="Add the public OAuth Client IDs created in your Spotify and Google developer accounts. Do not paste a client secret. Sign-in opens in your system browser and account tokens are protected for this Windows user." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                <TextBlock Text="Spotify Client ID" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="0,0,12,8" />
-                                <TextBox x:Name="SpotifyClientIdBox" Grid.Column="1" VerticalContentAlignment="Center" Padding="9,6" Margin="0,0,8,8" AutomationProperties.Name="Spotify public client ID" />
-                                <Button Grid.Column="2" Tag="https://developer.spotify.com/dashboard" Content="Spotify dashboard" Click="OpenMusicDeveloperPortal_Click" Margin="0,0,0,8" />
-                                <TextBlock Grid.Row="1" Text="Google Client ID" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="0,0,12,8" />
-                                <TextBox x:Name="YouTubeClientIdBox" Grid.Row="1" Grid.Column="1" VerticalContentAlignment="Center" Padding="9,6" Margin="0,0,8,8" AutomationProperties.Name="Google OAuth client ID for YouTube" />
-                                <Button Grid.Row="1" Grid.Column="2" Tag="https://console.cloud.google.com/apis/credentials" Content="Google Cloud" Click="OpenMusicDeveloperPortal_Click" Margin="0,0,0,8" />
-                                <Button Grid.Row="2" Grid.Column="1" Content="Save account settings" Click="SaveMusicClientIds_Click" HorizontalAlignment="Left" Background="{DynamicResource AccentPurpleBrush}" Foreground="White" />
-                                <TextBlock Grid.Row="2" Grid.Column="2" Text="YouTube Data API v3 must be enabled." Foreground="{DynamicResource MutedTextBrush}" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0" />
-                                <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,3,0,0">
-                                    <Button x:Name="DisconnectSpotifyButton" Content="Disconnect Spotify" Click="DisconnectSpotify_Click" Margin="0,0,8,0" />
-                                    <Button x:Name="DisconnectYouTubeButton" Content="Disconnect YouTube" Click="DisconnectYouTube_Click" />
-                                </StackPanel>
-                                <Button Grid.Row="4" Grid.Column="1" Content="Privacy details" Tag="https://github.com/xtremecorporation/XtremePlays/blob/main/PRIVACY.md" Click="OpenMusicDeveloperPortal_Click" HorizontalAlignment="Left" Margin="0,7,0,0" />
-                            </Grid>
-                                <TextBlock Text="Spotify: register http://127.0.0.1/callback/ as its redirect URI. Google: create a Desktop app OAuth client and enable YouTube Data API v3. Spotify Development Mode is limited to a small allowlist; wider access needs Spotify approval. Only Spotify metadata is kept in memory until the app closes." Foreground="{DynamicResource MutedTextBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,7,0,0" />
                         </StackPanel></Border>
                         <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="14" Padding="17" Margin="0,0,0,10"><StackPanel>
                             <TextBlock Text="Ad blocking" Foreground="{DynamicResource MainTextBrush}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,5" />

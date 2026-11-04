@@ -6,10 +6,11 @@ namespace XtremePlays.App.Views;
 
 public partial class BookmarkDialog : Window
 {
-    public BookmarkDialog(Bookmark? bookmark = null)
+    public BookmarkDialog(Bookmark? bookmark = null, string itemLabel = "bookmark")
     {
         InitializeComponent();
-        DialogTitle.Text = bookmark is null ? "Add bookmark" : "Edit bookmark";
+        DialogTitle.Text = bookmark is null ? $"Add {itemLabel}" : $"Edit {itemLabel}";
+        Title = DialogTitle.Text;
         TitleInput.Text = bookmark?.Title ?? string.Empty;
         UrlInput.Text = bookmark?.Url ?? string.Empty;
         Result = bookmark is null ? new Bookmark() : new Bookmark { Title = bookmark.Title, Url = bookmark.Url };

@@ -1,5 +1,6 @@
 namespace XtremePlays.App.Models;
 
+// Legacy cache shape retained only to import music links from an earlier preview.
 public sealed class MusicLibraryTrack
 {
     public string Id { get; set; } = string.Empty;

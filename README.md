@@ -51,6 +51,7 @@ The first updater-enabled release is a migration release: existing 1.2.2 install
 - Native resizable WPF window with light and dark themes.
 - Embedded WebView2 browser with navigation, search, loading/error status, and same-window popup handling.
 - YouTube, YouTube Music, and Spotify shortcuts, plus custom bookmark add/edit/remove/reorder.
+- A local saved-link library for tracks, albums, and playlists. Add a link from Home or save the page currently open in the browser; saved links also appear in Bookmarks and can be exported/restored as JSON.
 - Versioned JSON backup and restore for the complete bookmark collection.
 - Persistent WebView2 profile for provider sessions. Navigating to Settings, Audio Sharing, About, Bookmarks, or Home keeps the current service page alive.
 - Explicitly started WASAPI mixing of this app's browser audio and a selected microphone to a selected virtual playback endpoint.
@@ -64,7 +65,6 @@ The first updater-enabled release is a migration release: existing 1.2.2 install
 - WebView2 does not provide browser extension toolbar popups. Pin keeps an extension near the top of the Plugins list; some extensions may not expose all their Chrome features in WebView2.
 - The supplied design palette is applied across the app: dark surfaces, purple primary accents, cyan details, rounded sections, and Segoe UI Variable where available.
 - Admins can package and upload unpacked extensions using [`scripts/Publish-Plugin.ps1`](scripts/Publish-Plugin.ps1). Review and add the resulting catalog entry to `plugins/catalog.json` before it becomes visible in users' apps.
-- Optional account sync can show Spotify saved tracks and YouTube playlist videos on Home. It opens provider sign-in in the system browser, uses read-only scopes, stores OAuth tokens protected for the current Windows user, and does not download or play audio. Spotify metadata stays in memory only; YouTube metadata is cached locally until that account is disconnected.
 
 ## Developer
 
@@ -74,7 +74,7 @@ X-TREME PLAY'S is developed by **Abu Rayhan**. Find him on [Facebook](https://ww
 
 - The app does not record audio or send it to an X-TREME server. Audio capture starts only when the user presses Start sharing; it stops when sharing is stopped or the app closes. The mixed stream goes only to the selected local virtual playback endpoint.
 - To route the mix into Discord or WhatsApp, choose the matching VB-CABLE recording endpoint as that call app's microphone and enable its own call/share feature. Actual call quality depends on the Windows device drivers and the destination app.
-- Music playback, provider sign-in, account features, and player controls belong to the websites. Spotify API sync needs an owner-created OAuth Client ID and is subject to Spotify's current Development Mode allowlist, Premium, and wider-access approval requirements. YouTube sync needs a Google Desktop OAuth Client ID, enabled YouTube Data API v3, and user consent; it lists YouTube playlists/videos, not YouTube Music recommendations or its complete private library. See [`PRIVACY.md`](PRIVACY.md) for what is accessed and stored.
+- Music playback and sign-in belong to each provider website. Users sign in to YouTube, YouTube Music, and Spotify inside the app's persistent browser profile; X-TREME PLAY'S does not read or automatically import provider libraries. No Spotify or Google developer account, API key, or OAuth setup is needed for browser playback. Save individual track, album, or playlist URLs to Home when desired. See [`PRIVACY.md`](PRIVACY.md) for what is accessed and stored.
 - The mixer applies voice/music/master gains and a peak limiter. Headphones help reduce room echo; keep levels below clipping.
 - A successful Windows build does not certify a clean PC install, microphone/cable compatibility, or every provider's behavior. Test those on the target Windows and call-app setup.
 
@@ -92,7 +92,7 @@ The AdBlock and AdGuard extension packages are distributed under GPL-3.0 with so
 
 ## Privacy and app data
 
-No X-TREME account, telemetry, or background service is used. Browser cookies and website storage remain in `%LOCALAPPDATA%\XtremeCorporation\XtremePlays\BrowserData`; app preferences and bookmarks are stored in the same local data folder. Resetting app preferences keeps website sessions; clearing browser data removes them after confirmation. App updates are checked through the public GitHub Releases feed; they do not send browser, account, audio, or preference data. Music-provider API requests go directly from the app to Spotify or Google after you connect an account. See [`PRIVACY.md`](PRIVACY.md).
+No X-TREME account, telemetry, or background service is used. Browser cookies and website storage remain in `%LOCALAPPDATA%\XtremeCorporation\XtremePlays\BrowserData`; app preferences and saved links are stored in the same local data folder. Resetting app preferences keeps website sessions; clearing browser data removes them after confirmation. App updates are checked through the public GitHub Releases feed; they do not send browser, account, audio, or preference data. The app does not access music-provider APIs or read account libraries. See [`PRIVACY.md`](PRIVACY.md).
 
 ## License
 

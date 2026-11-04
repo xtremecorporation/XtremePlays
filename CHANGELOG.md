@@ -10,6 +10,7 @@
 - Apply the supplied purple/cyan design palette, dark surfaces, rounded cards, and Segoe UI Variable typography across the app.
 - Remove startup retries for WebView2-managed Clipboard and PDF extensions; only catalog plugins appear in the new Plugins window.
 - Add a maintainer workflow for packaging and publishing compatible unpacked extensions to GitHub Releases and listing them in `plugins/catalog.json`.
+- Remove Spotify/Google developer API setup. Home now uses the user's local saved links, with one-time migration of valid preview cache links and cleanup of obsolete OAuth tokens.
 
 ## 1.5.1
 

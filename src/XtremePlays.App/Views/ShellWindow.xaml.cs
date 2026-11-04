@@ -39,7 +39,6 @@ public partial class ShellWindow : Window
     private readonly DispatcherTimer _audioMeterTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly ObservableCollection<Bookmark> _bookmarks = [];
     private readonly ObservableCollection<BrowserExtensionItem> _browserExtensions = [];
-    private readonly ObservableCollection<MusicLibraryTrack> _musicTracks = [];
     private AppPreferences _preferences = new();
     private bool _settingsLoaded;
     private bool _browserAvailable;
@@ -66,7 +65,7 @@ public partial class ShellWindow : Window
         BookmarkList.ItemsSource = _bookmarks;
         QuickBookmarkSelector.ItemsSource = _bookmarks;
         BrowserExtensionList.ItemsSource = _browserExtensions;
-        HomeTrackList.ItemsSource = _musicTracks;
+        HomeSavedLinksList.ItemsSource = _bookmarks;
         _audioMeterTimer.Tick += AudioMeterTimer_Tick;
         PreviewKeyDown += ShellWindow_PreviewKeyDown;
     }
@@ -76,9 +75,6 @@ public partial class ShellWindow : Window
         AppPaths.Initialize(Environment.GetCommandLineArgs());
         var (preferences, warning) = await _settingsStore.LoadAsync();
         _preferences = preferences;
-        SpotifyClientIdBox.Text = _preferences.SpotifyClientId;
-        YouTubeClientIdBox.Text = _preferences.YouTubeClientId;
-        LoadMusicCache();
         _bookmarks.Clear();
         foreach (var bookmark in _preferences.Bookmarks)
         {
@@ -109,7 +105,6 @@ public partial class ShellWindow : Window
             : $"Private local data folder: {AppPaths.DataDirectory}";
         _settingsLoaded = true;
         ApplyTheme(_preferences.DarkTheme);
-        StartUpdateCheckOnLaunch();
         InitializeMuteHotkeys();
         UpdateMuteButtons();
         if (warning is not null)
@@ -117,10 +112,9 @@ public partial class ShellWindow : Window
             SetStatus(warning, isError: true);
         }
 
+        await MigrateLegacyMusicDataAsync();
         await InitializeBrowserAsync();
-        UpdateMusicAccountButtons();
-        if (MusicLibraryService.IsConnected("Spotify") || MusicLibraryService.IsConnected("YouTube"))
-            _ = SyncMusicInBackgroundAsync();
+        StartUpdateCheckOnLaunch();
     }
 
     private void StartUpdateCheckOnLaunch() => _ = CheckAndInstallAvailableUpdateAsync();
@@ -258,162 +252,86 @@ public partial class ShellWindow : Window
         }
     }
 
-    private async void ConnectSpotify_Click(object sender, RoutedEventArgs e) => await ConnectMusicAccountAsync("Spotify");
-
-    private async void ConnectYouTube_Click(object sender, RoutedEventArgs e) => await ConnectMusicAccountAsync("YouTube");
-
-    private async Task ConnectMusicAccountAsync(string provider)
+    private void OpenSavedLink_Click(object sender, RoutedEventArgs e)
     {
-        SaveMusicClientIds();
-        await SavePreferencesSafelyAsync();
-        var clientId = provider == "Spotify" ? _preferences.SpotifyClientId : _preferences.YouTubeClientId;
-        if (string.IsNullOrWhiteSpace(clientId))
-        {
-            ShowPanel(SettingsPanel);
-            SetStatus($"Add your {provider} public Client ID in Settings first.", isError: true);
-            return;
-        }
+        if ((sender as FrameworkElement)?.Tag is not Bookmark bookmark) return;
+        NavigateTo(bookmark.Url);
+        SetStatus($"Opening {bookmark.Title} on {bookmark.ProviderLabel}.");
+    }
 
-        var disclosure = provider == "Spotify"
-            ? "X-TREME PLAY'S will ask Spotify for your saved-track titles, artists, and cover art, then show provider links in Home. This metadata stays in app memory until you close the app. The OAuth token is protected for this Windows account; X-TREME PLAY'S does not send your library to its own server. Disconnect Spotify in Settings to delete the token. Read Privacy details in Settings before continuing."
-            : "X-TREME PLAY'S will ask YouTube for your playlist and playlist-video metadata, then show links in Home. The metadata is cached in this Windows account's local app-data folder until you disconnect YouTube. The OAuth token is protected for this Windows account; X-TREME PLAY'S does not send your library to its own server. Disconnect YouTube in Settings to delete the token and cached list. Read Privacy details in Settings before continuing.";
-        if (MessageBox.Show(this, disclosure, $"Connect {provider}", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK)
-        {
-            MusicSyncStatusText.Text = $"{provider} connection was cancelled.";
-            return;
-        }
+    private void AddLibraryLink_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new BookmarkDialog(itemLabel: "music link") { Owner = this };
+        if (dialog.ShowDialog() == true) AddBookmark(dialog.Result);
+    }
 
-        ConnectSpotifyButton.IsEnabled = false;
-        ConnectYouTubeButton.IsEnabled = false;
-        MusicSyncStatusText.Text = $"Opening secure {provider} sign-in in your browser…";
-        var progress = new Progress<string>(message => MusicSyncStatusText.Text = message);
+    private async Task MigrateLegacyMusicDataAsync()
+    {
+        var cacheFile = AppPaths.MusicLibraryCacheFile;
+        var tokenFile = AppPaths.MusicTokensFile;
+        var imported = new List<Bookmark>();
+        var keepCacheForLater = false;
         try
         {
-            if (provider == "Spotify")
-                await MusicLibraryService.ConnectSpotifyAsync(clientId, progress);
-            else
-                await MusicLibraryService.ConnectYouTubeAsync(clientId, progress);
-            LoadMusicCache();
-            SetStatus($"{provider} connected. Saved music metadata is ready on Home.");
+            var info = new FileInfo(cacheFile);
+            if (info.Exists && info.Length > 5 * 1024 * 1024)
+            {
+                SetStatus("Old music cache is larger than the safe import limit; it was kept unchanged.", isError: true);
+                return;
+            }
+            if (info.Exists && info.Length is > 0 and <= 5 * 1024 * 1024)
+            {
+                var legacyTracks = JsonSerializer.Deserialize<List<MusicLibraryTrack>>(await File.ReadAllBytesAsync(cacheFile)) ?? [];
+                foreach (var track in legacyTracks)
+                {
+                    if (track is null) continue;
+                    var title = SettingsStore.SanitizeTitle(track.Title);
+                    var url = SettingsStore.NormalizeWebUrl(track.Url);
+                    if (title.Length == 0 || url is null || _bookmarks.Any(item => string.Equals(item.Url, url, StringComparison.OrdinalIgnoreCase)) || imported.Any(item => string.Equals(item.Url, url, StringComparison.OrdinalIgnoreCase))) continue;
+                    if (_bookmarks.Count + imported.Count >= 100)
+                    {
+                        keepCacheForLater = true;
+                        continue;
+                    }
+                    var artist = SettingsStore.SanitizeTitle(track.Artist);
+                    if (!string.IsNullOrWhiteSpace(artist) && title.Length < 55) title = SettingsStore.SanitizeTitle($"{title} · {artist}");
+                    imported.Add(new Bookmark { Title = title, Url = url });
+                }
+            }
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
-            MusicSyncStatusText.Text = exception.Message;
-            SetStatus($"Could not connect {provider}: {exception.Message}", isError: true);
-        }
-        finally
-        {
-            UpdateMusicAccountButtons();
-        }
-    }
-
-    private async void SyncMusic_Click(object sender, RoutedEventArgs e)
-    {
-        SaveMusicClientIds();
-        await SavePreferencesSafelyAsync();
-        await SyncMusicAsync();
-    }
-
-    private async Task SyncMusicInBackgroundAsync()
-    {
-        await Task.Delay(500);
-        await SyncMusicAsync(silent: true);
-    }
-
-    private async Task SyncMusicAsync(bool silent = false)
-    {
-        var spotifyConnected = MusicLibraryService.IsConnected("Spotify");
-        var youtubeConnected = MusicLibraryService.IsConnected("YouTube");
-        if (!spotifyConnected && !youtubeConnected)
-        {
-            MusicSyncStatusText.Text = "Connect Spotify or YouTube to sync saved music metadata.";
+            SetStatus("Old synced music links could not be imported. Your bookmarks and browser sign-ins are safe.", isError: true);
             return;
         }
 
-        SyncMusicButton.IsEnabled = false;
-        var progress = new Progress<string>(message => MusicSyncStatusText.Text = message);
+        foreach (var bookmark in imported) _bookmarks.Add(bookmark);
+        if (imported.Count > 0)
+        {
+            var previousBookmarks = _preferences.Bookmarks;
+            _preferences.Bookmarks = _bookmarks.Select(bookmark => new Bookmark { Title = bookmark.Title, Url = bookmark.Url }).ToList();
+            if (!await SavePreferencesSafelyAsync())
+            {
+                foreach (var bookmark in imported) _bookmarks.Remove(bookmark);
+                _preferences.Bookmarks = previousBookmarks;
+                return;
+            }
+        }
+
         try
         {
-            var tracks = await MusicLibraryService.SyncConnectedAsync(
-                _preferences.SpotifyClientId,
-                _preferences.YouTubeClientId,
-                progress);
-            ReplaceMusicTracks(tracks);
-            if (!silent) SetStatus($"Synced {tracks.Count:N0} item(s) from your connected accounts.");
+            if (File.Exists(tokenFile)) File.Delete(tokenFile);
+            if (!keepCacheForLater && File.Exists(cacheFile)) File.Delete(cacheFile);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            MusicSyncStatusText.Text = $"Sync could not finish: {exception.Message}";
-            if (!silent) SetStatus(MusicSyncStatusText.Text, isError: true);
+            SetStatus("Old account-sync data could not be fully removed. Website sign-ins and saved links still work.", isError: true);
         }
-        finally
-        {
-            SyncMusicButton.IsEnabled = true;
-            UpdateMusicAccountButtons();
-        }
-    }
 
-    private void OpenMusicTrack_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not MusicLibraryTrack track) return;
-        NavigateTo(track.Url);
-        SetStatus($"Opening {track.Title} on {track.Provider}.");
-    }
-
-    private async void SaveMusicClientIds_Click(object sender, RoutedEventArgs e)
-    {
-        SaveMusicClientIds();
-        await SavePreferencesSafelyAsync();
-        SetStatus("Music account settings saved. No client secret is needed in this app.");
-    }
-
-    private void SaveMusicClientIds()
-    {
-        _preferences.SpotifyClientId = SpotifyClientIdBox.Text.Trim();
-        _preferences.YouTubeClientId = YouTubeClientIdBox.Text.Trim();
-    }
-
-    private void OpenMusicDeveloperPortal_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is not string target || !Uri.TryCreate(target, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
-            return;
-        try { Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
-        catch (Exception exception) { SetStatus($"Could not open the developer portal: {exception.Message}", isError: true); }
-    }
-
-    private void DisconnectSpotify_Click(object sender, RoutedEventArgs e) => DisconnectMusicAccount("Spotify");
-
-    private void DisconnectYouTube_Click(object sender, RoutedEventArgs e) => DisconnectMusicAccount("YouTube");
-
-    private void DisconnectMusicAccount(string provider)
-    {
-        MusicLibraryService.Disconnect(provider);
-        LoadMusicCache();
-        UpdateMusicAccountButtons();
-        SetStatus($"{provider} account disconnected from music sync. Your provider website sign-in remains unchanged.");
-    }
-
-    private void LoadMusicCache() => ReplaceMusicTracks(MusicLibraryService.LoadCachedTracks());
-
-    private void ReplaceMusicTracks(IEnumerable<MusicLibraryTrack> tracks)
-    {
-        _musicTracks.Clear();
-        foreach (var track in tracks.Take(1000)) _musicTracks.Add(track);
-        if (_musicTracks.Count == 0)
-            MusicSyncStatusText.Text = MusicLibraryService.IsConnected("Spotify") || MusicLibraryService.IsConnected("YouTube")
-                ? "No saved tracks or playlist videos found yet. Choose Sync to try again."
-                : "Connect Spotify or YouTube to sync saved music metadata.";
-    }
-
-    private void UpdateMusicAccountButtons()
-    {
-        var spotifyConnected = MusicLibraryService.IsConnected("Spotify");
-        var youtubeConnected = MusicLibraryService.IsConnected("YouTube");
-        ConnectSpotifyButton.Content = spotifyConnected ? "Reconnect Spotify" : "Connect Spotify";
-        ConnectYouTubeButton.Content = youtubeConnected ? "Reconnect YouTube" : "Connect YouTube";
-        DisconnectSpotifyButton.IsEnabled = spotifyConnected;
-        DisconnectYouTubeButton.IsEnabled = youtubeConnected;
-        SyncMusicButton.IsEnabled = spotifyConnected || youtubeConnected;
+        if (keepCacheForLater)
+            SetStatus($"Moved {imported.Count} old link(s). Some remain cached until you have room in your bookmarks.");
+        else if (imported.Count > 0)
+            SetStatus($"Moved {imported.Count} old music link(s) into your local library.");
     }
 
     private void ShowPanel(UIElement panel)
