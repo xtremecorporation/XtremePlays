@@ -6,7 +6,7 @@ X-TREME PLAY'S is a Windows music companion with an embedded WebView2 browser an
 
 ## Install
 
-Download **`XtremePlays-<version>-Full-Setup.exe`** from the repository's [GitHub Releases](https://github.com/xtremecorporation/XtremePlays/releases). This integrated setup includes the app, the unchanged official VB-CABLE package, and AdBlock plus AdGuard. The extensions are unpacked and installed into the app profile on first launch, using about 500 MB of local storage. VB-CABLE installation is selectable; administrator approval is requested only when the driver needs installation or an older system-wide X-TREME PLAY'S installation must be migrated. The app still installs if VB-CABLE is skipped or needs a Windows restart.
+Download **`XtremePlays-<version>-Full-Setup.exe`** from the repository's [GitHub Releases](https://github.com/xtremecorporation/XtremePlays/releases). The integrated setup includes the app and the unchanged official VB-CABLE package. Optional plugins are separate GitHub release assets and download only when a user selects Install in the app's Plugins window. VB-CABLE installation is selectable; administrator approval is requested only when the driver needs installation or an older system-wide X-TREME PLAY'S installation must be migrated. The app still installs if VB-CABLE is skipped or needs a Windows restart.
 
 The app is installed for the current Windows account under `%LOCALAPPDATA%\XtremePlays`, with Start menu and optional desktop shortcuts. Windows lists it in **Settings → Apps → Installed apps**, where it can be uninstalled normally. Uninstalling the app keeps its local settings/browser data and leaves VB-CABLE installed because other apps may use that system-wide driver. The setup also installs Microsoft's WebView2 Runtime from Microsoft if it is missing. Internet is needed for that runtime step and for update checks. Setup can launch the app when installation finishes.
 
@@ -22,27 +22,27 @@ The separate Velopack `XtremePlays-win-Setup.exe` release asset installs or upda
 
 Requirements: Windows 10 version 2004 (build 19041) or later, x64, the .NET 10 SDK, and Rust stable with the `x86_64-pc-windows-msvc` target (`rustup` from [rustup.rs](https://rustup.rs/)).
 
-Build the Brave ad-block engine and self-contained app payload, then create the optional Velopack installer:
+Build the app payload and optional plugin packages, then create the Velopack installer:
 
 ```powershell
 ./packaging/build-adblock.ps1
 ./packaging/publish-velopack.ps1
 dotnet tool install --global vpk --version 1.2.161
-vpk pack --packId XtremePlays --packVersion 1.5.1 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
+vpk pack --packId XtremePlays --packVersion 2.0.0 --runtime win-x64 --packDir .installer-staging/velopack-app --mainExe XtremePlays.exe --packTitle "X-TREME PLAY'S" --packAuthors "X-TREME CORPORATION" --icon src/XtremePlays.App/Assets/XtremePlays.ico --splashImage src/XtremePlays.App/Assets/BrandLogo.png --shortcuts StartMenuRoot,Desktop --noPortable --outputDir artifacts/velopack
 ./packaging/build-installer.ps1
 ```
 
-The integrated setup is written to `artifacts/XtremePlays-1.5.1-Full-Setup.exe`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
+The integrated setup is written to `artifacts/XtremePlays-2.0.0-Full-Setup.exe`; optional packages are written to `artifacts/plugins`. `./packaging/publish.ps1` separately creates the portable ZIP; portable builds do not self-update and store data beside the executable.
 
 ## Publish an update with GitHub Actions
 
-The `Windows build` workflow builds app changes on pushes and pull requests to `main`. The `Build and publish Windows release` workflow runs only for a version tag such as `v1.3.4`. Before tagging a release:
+The `Windows build` workflow builds app changes on pushes and pull requests to `main`. The `Build and publish Windows release` workflow runs only for a version tag such as `v2.0.0`. Before tagging a release:
 
 1. Update the app and setup `<Version>` values to the same `x.y.z` version.
 2. Add a matching section at the top of `CHANGELOG.md`.
-3. Push the version tag, for example `git tag v1.5.1` followed by `git push origin v1.5.1`.
+3. Push the version tag, for example `git tag v2.0.0` followed by `git push origin v2.0.0`.
 
-GitHub Actions builds the app, creates Velopack full/delta packages, builds the integrated driver setup, uploads all release assets to a draft, and publishes only after the full setup is attached. No personal access token or signing secret is required; the workflow uses its repository-scoped `GITHUB_TOKEN`. The repository must be public for anonymous clients to receive updates.
+GitHub Actions builds the app and optional plugin packages, creates Velopack full/delta packages, builds the integrated driver setup, uploads all release assets to a draft, and publishes only after the full setup and plugin packages are attached. No personal access token or signing secret is required; the workflow uses its repository-scoped `GITHUB_TOKEN`. The repository must be public for anonymous clients to receive updates.
 
 The first updater-enabled release is a migration release: existing 1.2.2 installations cannot self-update because those builds do not contain the updater. They need the full setup once. Later releases update through Velopack without rerunning the driver installer.
 
@@ -58,10 +58,13 @@ The first updater-enabled release is a migration release: existing 1.2.2 install
 - Portable mode and a self-contained x64 app build.
 - Integrated setup that bundles VB-CABLE and migrates the previous system-wide app install without deleting app data.
 - GitHub Releases updates, Windows build/release automation, and weekly Dependabot checks for NuGet and workflow actions.
-- Optional Brave adblock-rust network filtering for the embedded browser, controlled in Settings and backed by the user's local EasyList/EasyPrivacy cache.
-- AdBlock 6.52.0 and AdGuard 5.5.3.42 are installed automatically in the WebView2 profile. They can be disabled or removed from Extensions and restored from that page. The app removes the unwanted Microsoft Clipboard Extension and Microsoft Edge PDF Viewer from its profile at startup. Other compatible unpacked extensions can be added after reviewing their declared access and pinned to the top of the manager list.
-- The separate Brave adblock-rust engine remains in Settings and is unchanged. It can run alongside both included extensions; turn a blocker off if a page or playback breaks.
-- Chrome Web Store installs go to Chrome. WebView2 does not provide browser toolbar extension icons or popups; the app's pin control keeps an extension at the top of the manager list, and some extension settings/features can be unavailable.
+- A searchable, categorized Plugins window. It shows only entries from `plugins/catalog.json` in this GitHub repository; there is no direct Chrome Web Store search or install.
+- AdBlock, AdGuard, and the optional Brave `adblock-rust` network filter are separate release assets, not part of the app setup. Users can install, enable, disable, pin, update, or remove compatible catalog entries on demand.
+- Plugin ZIP packages are downloaded only after a user chooses Install. The app verifies the SHA-256 reported for the GitHub release asset, rejects unsafe archive paths, and reviews browser-extension permissions before installation.
+- WebView2 does not provide browser extension toolbar popups. Pin keeps an extension near the top of the Plugins list; some extensions may not expose all their Chrome features in WebView2.
+- The supplied design palette is applied across the app: dark surfaces, purple primary accents, cyan details, rounded sections, and Segoe UI Variable where available.
+- Admins can package and upload unpacked extensions using [`scripts/Publish-Plugin.ps1`](scripts/Publish-Plugin.ps1). Review and add the resulting catalog entry to `plugins/catalog.json` before it becomes visible in users' apps.
+- Optional account sync can show Spotify saved tracks and YouTube playlist videos on Home. It opens provider sign-in in the system browser, uses read-only scopes, stores OAuth tokens protected for the current Windows user, and does not download or play audio. Spotify metadata stays in memory only; YouTube metadata is cached locally until that account is disconnected.
 
 ## Developer
 
@@ -71,13 +74,13 @@ X-TREME PLAY'S is developed by **Abu Rayhan**. Find him on [Facebook](https://ww
 
 - The app does not record audio or send it to an X-TREME server. Audio capture starts only when the user presses Start sharing; it stops when sharing is stopped or the app closes. The mixed stream goes only to the selected local virtual playback endpoint.
 - To route the mix into Discord or WhatsApp, choose the matching VB-CABLE recording endpoint as that call app's microphone and enable its own call/share feature. Actual call quality depends on the Windows device drivers and the destination app.
-- Music playback, provider sign-in, account features, and player controls belong to the websites. App-level play/pause, track metadata, media keys, and player volume are not exposed consistently across providers.
+- Music playback, provider sign-in, account features, and player controls belong to the websites. Spotify API sync needs an owner-created OAuth Client ID and is subject to Spotify's current Development Mode allowlist, Premium, and wider-access approval requirements. YouTube sync needs a Google Desktop OAuth Client ID, enabled YouTube Data API v3, and user consent; it lists YouTube playlists/videos, not YouTube Music recommendations or its complete private library. See [`PRIVACY.md`](PRIVACY.md) for what is accessed and stored.
 - The mixer applies voice/music/master gains and a peak limiter. Headphones help reduce room echo; keep levels below clipping.
 - A successful Windows build does not certify a clean PC install, microphone/cable compatibility, or every provider's behavior. Test those on the target Windows and call-app setup.
 
 ## Ad-blocking limitations
 
-- Ad blocking is optional and off by default. When enabled, the Brave adblock-rust network filter engine evaluates WebView2 requests locally against EasyList and EasyPrivacy. The app downloads those public filter lists from their official sources and refreshes them about once a day while the feature is in use; it does not send browsing URLs to an X-TREME PLAY'S server.
+- Ad blocking is optional and off by default. Install Brave Adblock Engine from Plugins, then enable it in Settings. When enabled, the engine evaluates WebView2 requests locally against EasyList and EasyPrivacy. The app downloads those public filter lists from their official sources and refreshes them about once a day while the feature is in use; it does not send browsing URLs to an X-TREME PLAY'S server.
 - The app includes network request filtering, not Brave Browser or the complete Brave Shields implementation. Some providers deliver ads from the same hosts and media streams as the requested content, and some ad placements are part of the page itself. Those ads may still appear. Cosmetic hiding and every rule that requires browser-specific script or resource replacement are not guaranteed. Websites can also change or detect filtering, so this feature cannot promise 100% ad removal.
 - A page may break when a required request is blocked. Turn the setting off and reload that page to restore normal requests. When enabling the feature on a page that is already open, reload it if you want newly loaded content to use the rules; current playback is not stopped automatically.
 
@@ -85,11 +88,11 @@ X-TREME PLAY'S is developed by **Abu Rayhan**. Find him on [Facebook](https://ww
 
 VB-CABLE is a separate VB-Audio donationware product. The release bundle includes only the unchanged base driver package, identifies VB-Audio as the source, and links to the vendor's [product page](https://vb-cable.com/) and [licensing/donation terms](https://vb-audio.com/Services/licensing.htm). Professional or commercial distribution may require additional VB-Audio licenses. The driver remains installed if X-TREME PLAY'S is uninstalled because other apps may use it. See [`packaging/third-party/VB-CABLE-NOTICE.txt`](packaging/third-party/VB-CABLE-NOTICE.txt).
 
-The AdBlock and AdGuard extension packages are distributed under GPL-3.0 with source links and notices in [`packaging/third-party/browser-extensions/NOTICE.txt`](packaging/third-party/browser-extensions/NOTICE.txt) and the full license in [`packaging/third-party/browser-extensions/GPL-3.0.txt`](packaging/third-party/browser-extensions/GPL-3.0.txt). Their compressed packages total about 117 MB; the extracted files use about 492 MB. The Brave adblock-rust library is MPL-2.0 licensed; the app build pins version 0.13.5 and includes the upstream source reference and license in [`packaging/third-party/BRAVE-ADBLOCK-NOTICE.txt`](packaging/third-party/BRAVE-ADBLOCK-NOTICE.txt) and [`packaging/third-party/MOZILLA-PUBLIC-LICENSE-2.0.txt`](packaging/third-party/MOZILLA-PUBLIC-LICENSE-2.0.txt). EasyList and EasyPrivacy are fetched at runtime after opt-in and are not redistributed in the installer. Their maintainers publish their own license terms; see [`packaging/third-party/EASYLIST-FILTER-LISTS-NOTICE.txt`](packaging/third-party/EASYLIST-FILTER-LISTS-NOTICE.txt).
+The AdBlock and AdGuard extension packages are distributed under GPL-3.0 with source links and notices in [`packaging/third-party/browser-extensions/NOTICE.txt`](packaging/third-party/browser-extensions/NOTICE.txt) and the full license in [`packaging/third-party/browser-extensions/GPL-3.0.txt`](packaging/third-party/browser-extensions/GPL-3.0.txt). Their large archives are hosted as optional GitHub release assets and are not included in the app installer. The Brave adblock-rust library is MPL-2.0 licensed; the app build pins version 0.13.5 and includes the upstream source reference and license in [`packaging/third-party/BRAVE-ADBLOCK-NOTICE.txt`](packaging/third-party/BRAVE-ADBLOCK-NOTICE.txt) and [`packaging/third-party/MOZILLA-PUBLIC-LICENSE-2.0.txt`](packaging/third-party/MOZILLA-PUBLIC-LICENSE-2.0.txt). EasyList and EasyPrivacy are fetched at runtime after opt-in and are not redistributed in the installer. Their maintainers publish their own license terms; see [`packaging/third-party/EASYLIST-FILTER-LISTS-NOTICE.txt`](packaging/third-party/EASYLIST-FILTER-LISTS-NOTICE.txt).
 
 ## Privacy and app data
 
-No X-TREME account, telemetry, or background service is used. Browser cookies and website storage remain in `%LOCALAPPDATA%\XtremeCorporation\XtremePlays\BrowserData`; app preferences and bookmarks are stored in the same local data folder. Resetting app preferences keeps website sessions; clearing browser data removes them after confirmation. App updates are checked through the public GitHub Releases feed; they do not send browser, account, audio, or preference data.
+No X-TREME account, telemetry, or background service is used. Browser cookies and website storage remain in `%LOCALAPPDATA%\XtremeCorporation\XtremePlays\BrowserData`; app preferences and bookmarks are stored in the same local data folder. Resetting app preferences keeps website sessions; clearing browser data removes them after confirmation. App updates are checked through the public GitHub Releases feed; they do not send browser, account, audio, or preference data. Music-provider API requests go directly from the app to Spotify or Google after you connect an account. See [`PRIVACY.md`](PRIVACY.md).
 
 ## License
 

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-04",
+  "plugins": [
+    {
+      "id": "adblock",
+      "name": "AdBlock",
+      "description": "Blocks many advertising requests and page elements. Extension toolbar popups are not shown by WebView2.",
+      "category": "Extensions",
+      "type": "browser-extension",
+      "version": "6.52.0",
+      "publisher": "AdBlock, Inc.",
+      "sourceLabel": "X-TREME curated",
+      "sourceUrl": "https://gitlab.com/eyeo/browser-extensions-and-premium/extensions/extensions",
+      "releaseTag": "v2.0.0",
+      "assetName": "XtremePlays-Plugin-AdBlock-6.52.0.zip",
+      "sha256": "9EA759C52998A8364D9DD5C5A6BBC8A8C54E0CF1C0A71E11981AAF459F6C9797",
+      "license": "GPL-3.0",
+      "extensionId": "gighmmpiobklfepjocnamgkkbiglidom",
+      "capabilities": ["Browser extension", "Ad and tracker filtering"]
+    },
+    {
+      "id": "adguard-adblocker",
+      "name": "AdGuard AdBlocker",
+      "description": "Filters advertising and tracking requests with AdGuard's browser extension rules.",
+      "category": "Extensions",
+      "type": "browser-extension",
+      "version": "5.5.3.42",
+      "publisher": "AdGuard Software Limited",
+      "sourceLabel": "X-TREME curated",
+      "sourceUrl": "https://github.com/AdguardTeam/AdguardBrowserExtension",
+      "releaseTag": "v2.0.0",
+      "assetName": "XtremePlays-Plugin-AdGuard-5.5.3.42.zip",
+      "sha256": "86F52A9D84162A7106A892E2369F89C48856276C0DD6111BB1151E1E851FA2A9",
+      "license": "GPL-3.0",
+      "extensionId": "bgnkhhnnamicmpeenaelnjfhikgbkllg",
+      "capabilities": ["Browser extension", "Ad and tracker filtering"]
+    },
+    {
+      "id": "brave-adblock",
+      "name": "Brave Adblock Engine",
+      "description": "Brave's Rust ad-blocking library as an optional network-filter plugin. It is not the Brave browser or its complete Shields feature set.",
+      "category": "Ad blockers",
+      "type": "native-adblock",
+      "version": "0.13.5",
+      "publisher": "Brave Software",
+      "sourceLabel": "Official Brave source",
+      "sourceUrl": "https://github.com/brave/adblock-rust",
+      "releaseTag": "v2.0.0",
+      "assetName": "XtremePlays-Plugin-BraveAdBlock-0.13.5-win-x64.zip",
+      "payloadFile": "xtreme_adblock_bridge.dll",
+      "license": "MPL-2.0",
+      "capabilities": ["Network request filtering", "EasyList and EasyPrivacy rules"]
+    }
+  ]
+}

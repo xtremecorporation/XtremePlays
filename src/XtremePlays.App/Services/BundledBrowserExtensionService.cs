@@ -34,6 +34,44 @@ public static class BundledBrowserExtensionService
 
     public static bool HasRemovedExtensions => LoadState().RemovedIds.Count > 0;
 
+    public static async Task<IReadOnlyList<string>> RemoveLegacyDefaultsAsync(CoreWebView2Profile profile)
+    {
+        var state = LoadState();
+        var notices = new List<string>();
+        if (state.InstalledVersions.Count == 0) return notices;
+
+        IReadOnlyList<CoreWebView2BrowserExtension> installed;
+        try
+        {
+            installed = await profile.GetBrowserExtensionsAsync();
+        }
+        catch (Exception exception)
+        {
+            return [$"Earlier included extensions could not be migrated: {exception.Message}"];
+        }
+
+        foreach (var definition in Definitions)
+        {
+            if (!state.InstalledVersions.ContainsKey(definition.Id) || state.RemovedIds.Contains(definition.Id, StringComparer.Ordinal))
+                continue;
+            try
+            {
+                var extension = installed.FirstOrDefault(item => string.Equals(item.Id, definition.Id, StringComparison.Ordinal));
+                if (extension is not null) await extension.RemoveAsync();
+                state.InstalledVersions.Remove(definition.Id);
+                state.RemovedIds.Add(definition.Id);
+                DeleteExtensionFolder(GetExtensionFolder(definition));
+                SaveState(state);
+            }
+            catch (Exception exception)
+            {
+                notices.Add($"The previous {definition.Name} install could not be migrated: {exception.Message}");
+            }
+        }
+
+        return notices;
+    }
+
     public static async Task<IReadOnlyList<string>> EnsureInstalledAsync(CoreWebView2Profile profile, Action<string>? statusCallback = null)
     {
         var state = LoadState();

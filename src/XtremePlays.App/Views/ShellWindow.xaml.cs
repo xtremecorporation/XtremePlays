@@ -39,6 +39,7 @@ public partial class ShellWindow : Window
     private readonly DispatcherTimer _audioMeterTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly ObservableCollection<Bookmark> _bookmarks = [];
     private readonly ObservableCollection<BrowserExtensionItem> _browserExtensions = [];
+    private readonly ObservableCollection<MusicLibraryTrack> _musicTracks = [];
     private AppPreferences _preferences = new();
     private bool _settingsLoaded;
     private bool _browserAvailable;
@@ -61,10 +62,11 @@ public partial class ShellWindow : Window
     public ShellWindow()
     {
         InitializeComponent();
-        AboutVersionText.Text = $"Version {typeof(App).Assembly.GetName().Version?.ToString(3) ?? "1.3.0"} · X-TREME CORPORATION";
+        AboutVersionText.Text = $"Version {typeof(App).Assembly.GetName().Version?.ToString(3) ?? "2.0.0"} · X-TREME CORPORATION";
         BookmarkList.ItemsSource = _bookmarks;
         QuickBookmarkSelector.ItemsSource = _bookmarks;
         BrowserExtensionList.ItemsSource = _browserExtensions;
+        HomeTrackList.ItemsSource = _musicTracks;
         _audioMeterTimer.Tick += AudioMeterTimer_Tick;
         PreviewKeyDown += ShellWindow_PreviewKeyDown;
     }
@@ -74,6 +76,9 @@ public partial class ShellWindow : Window
         AppPaths.Initialize(Environment.GetCommandLineArgs());
         var (preferences, warning) = await _settingsStore.LoadAsync();
         _preferences = preferences;
+        SpotifyClientIdBox.Text = _preferences.SpotifyClientId;
+        YouTubeClientIdBox.Text = _preferences.YouTubeClientId;
+        LoadMusicCache();
         _bookmarks.Clear();
         foreach (var bookmark in _preferences.Bookmarks)
         {
@@ -113,6 +118,9 @@ public partial class ShellWindow : Window
         }
 
         await InitializeBrowserAsync();
+        UpdateMusicAccountButtons();
+        if (MusicLibraryService.IsConnected("Spotify") || MusicLibraryService.IsConnected("YouTube"))
+            _ = SyncMusicInBackgroundAsync();
     }
 
     private void StartUpdateCheckOnLaunch() => _ = CheckAndInstallAvailableUpdateAsync();
@@ -186,13 +194,8 @@ public partial class ShellWindow : Window
             _browserAvailable = true;
             BrowserUnavailablePanel.Visibility = Visibility.Collapsed;
             Browser.Visibility = Visibility.Visible;
-            AppStatusBadge.Text = "Preparing extensions";
-            var unwantedExtensionNotices = _extensionSupportAvailable
-                ? await UnwantedBrowserExtensionCleanup.RemoveAsync(Browser.CoreWebView2.Profile)
-                : Array.Empty<string>();
-            var bundledExtensionNotices = unwantedExtensionNotices.Concat(await BundledBrowserExtensionService.EnsureInstalledAsync(
-                Browser.CoreWebView2.Profile,
-                message => SetStatus(message))).ToList();
+            AppStatusBadge.Text = "Loading plugins";
+            var migrationNotices = await BundledBrowserExtensionService.RemoveLegacyDefaultsAsync(Browser.CoreWebView2.Profile);
             if (_preferences.AdBlockingEnabled)
             {
                 await EnableAdBlockingAsync(savePreference: false);
@@ -201,14 +204,12 @@ public partial class ShellWindow : Window
             {
                 UpdateAdBlockStatusText();
             }
-            await RefreshBrowserExtensionsAsync();
             var readyMessage = _adBlockService.IsEnabled
-                ? "Ready. The built-in network filter is on for new browser requests."
+                ? "Ready. Optional ad filtering is on for new browser requests."
                 : "Ready. Choose a music service to begin.";
-            SetStatus(bundledExtensionNotices.Count == 0
-                ? readyMessage
-                : $"{readyMessage} {string.Join(" ", bundledExtensionNotices)}",
-                isError: bundledExtensionNotices.Count > 0);
+            if (migrationNotices.Count > 0)
+                readyMessage += " Earlier default extensions could not all be removed; review them in Plugins.";
+            SetStatus(readyMessage);
             AppStatusBadge.Text = "Browser ready";
             UpdateNavigationButtons();
         }
@@ -247,7 +248,7 @@ public partial class ShellWindow : Window
             case "YouTube Music": NavigateToService("YouTube Music", "https://music.youtube.com/"); break;
             case "Spotify": NavigateToService("Spotify", "https://open.spotify.com/"); break;
             case "Bookmarks": ShowPanel(BookmarksPanel); SetStatus("Bookmarks"); break;
-            case "Extensions": _ = ShowExtensionsPanelAsync(); break;
+            case "Plugins": ShowPluginStore(); break;
             case "Audio Sharing":
                 ShowPanel(AudioPanel);
                 _ = RefreshAudioDevicesAsync();
@@ -255,6 +256,164 @@ public partial class ShellWindow : Window
             case "Settings": ShowPanel(SettingsPanel); SetStatus("Settings"); break;
             case "About": ShowPanel(AboutPanel); SetStatus("About X-TREME PLAY'S"); break;
         }
+    }
+
+    private async void ConnectSpotify_Click(object sender, RoutedEventArgs e) => await ConnectMusicAccountAsync("Spotify");
+
+    private async void ConnectYouTube_Click(object sender, RoutedEventArgs e) => await ConnectMusicAccountAsync("YouTube");
+
+    private async Task ConnectMusicAccountAsync(string provider)
+    {
+        SaveMusicClientIds();
+        await SavePreferencesSafelyAsync();
+        var clientId = provider == "Spotify" ? _preferences.SpotifyClientId : _preferences.YouTubeClientId;
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            ShowPanel(SettingsPanel);
+            SetStatus($"Add your {provider} public Client ID in Settings first.", isError: true);
+            return;
+        }
+
+        var disclosure = provider == "Spotify"
+            ? "X-TREME PLAY'S will ask Spotify for your saved-track titles, artists, and cover art, then show provider links in Home. This metadata stays in app memory until you close the app. The OAuth token is protected for this Windows account; X-TREME PLAY'S does not send your library to its own server. Disconnect Spotify in Settings to delete the token. Read Privacy details in Settings before continuing."
+            : "X-TREME PLAY'S will ask YouTube for your playlist and playlist-video metadata, then show links in Home. The metadata is cached in this Windows account's local app-data folder until you disconnect YouTube. The OAuth token is protected for this Windows account; X-TREME PLAY'S does not send your library to its own server. Disconnect YouTube in Settings to delete the token and cached list. Read Privacy details in Settings before continuing.";
+        if (MessageBox.Show(this, disclosure, $"Connect {provider}", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK)
+        {
+            MusicSyncStatusText.Text = $"{provider} connection was cancelled.";
+            return;
+        }
+
+        ConnectSpotifyButton.IsEnabled = false;
+        ConnectYouTubeButton.IsEnabled = false;
+        MusicSyncStatusText.Text = $"Opening secure {provider} sign-in in your browser…";
+        var progress = new Progress<string>(message => MusicSyncStatusText.Text = message);
+        try
+        {
+            if (provider == "Spotify")
+                await MusicLibraryService.ConnectSpotifyAsync(clientId, progress);
+            else
+                await MusicLibraryService.ConnectYouTubeAsync(clientId, progress);
+            LoadMusicCache();
+            SetStatus($"{provider} connected. Saved music metadata is ready on Home.");
+        }
+        catch (Exception exception)
+        {
+            MusicSyncStatusText.Text = exception.Message;
+            SetStatus($"Could not connect {provider}: {exception.Message}", isError: true);
+        }
+        finally
+        {
+            UpdateMusicAccountButtons();
+        }
+    }
+
+    private async void SyncMusic_Click(object sender, RoutedEventArgs e)
+    {
+        SaveMusicClientIds();
+        await SavePreferencesSafelyAsync();
+        await SyncMusicAsync();
+    }
+
+    private async Task SyncMusicInBackgroundAsync()
+    {
+        await Task.Delay(500);
+        await SyncMusicAsync(silent: true);
+    }
+
+    private async Task SyncMusicAsync(bool silent = false)
+    {
+        var spotifyConnected = MusicLibraryService.IsConnected("Spotify");
+        var youtubeConnected = MusicLibraryService.IsConnected("YouTube");
+        if (!spotifyConnected && !youtubeConnected)
+        {
+            MusicSyncStatusText.Text = "Connect Spotify or YouTube to sync saved music metadata.";
+            return;
+        }
+
+        SyncMusicButton.IsEnabled = false;
+        var progress = new Progress<string>(message => MusicSyncStatusText.Text = message);
+        try
+        {
+            var tracks = await MusicLibraryService.SyncConnectedAsync(
+                _preferences.SpotifyClientId,
+                _preferences.YouTubeClientId,
+                progress);
+            ReplaceMusicTracks(tracks);
+            if (!silent) SetStatus($"Synced {tracks.Count:N0} item(s) from your connected accounts.");
+        }
+        catch (Exception exception)
+        {
+            MusicSyncStatusText.Text = $"Sync could not finish: {exception.Message}";
+            if (!silent) SetStatus(MusicSyncStatusText.Text, isError: true);
+        }
+        finally
+        {
+            SyncMusicButton.IsEnabled = true;
+            UpdateMusicAccountButtons();
+        }
+    }
+
+    private void OpenMusicTrack_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not MusicLibraryTrack track) return;
+        NavigateTo(track.Url);
+        SetStatus($"Opening {track.Title} on {track.Provider}.");
+    }
+
+    private async void SaveMusicClientIds_Click(object sender, RoutedEventArgs e)
+    {
+        SaveMusicClientIds();
+        await SavePreferencesSafelyAsync();
+        SetStatus("Music account settings saved. No client secret is needed in this app.");
+    }
+
+    private void SaveMusicClientIds()
+    {
+        _preferences.SpotifyClientId = SpotifyClientIdBox.Text.Trim();
+        _preferences.YouTubeClientId = YouTubeClientIdBox.Text.Trim();
+    }
+
+    private void OpenMusicDeveloperPortal_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string target || !Uri.TryCreate(target, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+            return;
+        try { Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
+        catch (Exception exception) { SetStatus($"Could not open the developer portal: {exception.Message}", isError: true); }
+    }
+
+    private void DisconnectSpotify_Click(object sender, RoutedEventArgs e) => DisconnectMusicAccount("Spotify");
+
+    private void DisconnectYouTube_Click(object sender, RoutedEventArgs e) => DisconnectMusicAccount("YouTube");
+
+    private void DisconnectMusicAccount(string provider)
+    {
+        MusicLibraryService.Disconnect(provider);
+        LoadMusicCache();
+        UpdateMusicAccountButtons();
+        SetStatus($"{provider} account disconnected from music sync. Your provider website sign-in remains unchanged.");
+    }
+
+    private void LoadMusicCache() => ReplaceMusicTracks(MusicLibraryService.LoadCachedTracks());
+
+    private void ReplaceMusicTracks(IEnumerable<MusicLibraryTrack> tracks)
+    {
+        _musicTracks.Clear();
+        foreach (var track in tracks.Take(1000)) _musicTracks.Add(track);
+        if (_musicTracks.Count == 0)
+            MusicSyncStatusText.Text = MusicLibraryService.IsConnected("Spotify") || MusicLibraryService.IsConnected("YouTube")
+                ? "No saved tracks or playlist videos found yet. Choose Sync to try again."
+                : "Connect Spotify or YouTube to sync saved music metadata.";
+    }
+
+    private void UpdateMusicAccountButtons()
+    {
+        var spotifyConnected = MusicLibraryService.IsConnected("Spotify");
+        var youtubeConnected = MusicLibraryService.IsConnected("YouTube");
+        ConnectSpotifyButton.Content = spotifyConnected ? "Reconnect Spotify" : "Connect Spotify";
+        ConnectYouTubeButton.Content = youtubeConnected ? "Reconnect YouTube" : "Connect YouTube";
+        DisconnectSpotifyButton.IsEnabled = spotifyConnected;
+        DisconnectYouTubeButton.IsEnabled = youtubeConnected;
+        SyncMusicButton.IsEnabled = spotifyConnected || youtubeConnected;
     }
 
     private void ShowPanel(UIElement panel)
@@ -277,9 +436,29 @@ public partial class ShellWindow : Window
         SetStatus("Browser extensions");
     }
 
+    private void ShowPluginStore()
+    {
+        var profile = _browserAvailable && _extensionSupportAvailable ? Browser.CoreWebView2.Profile : null;
+        var window = new PluginStoreWindow(
+            profile,
+            async () =>
+            {
+                DisableAdBlocking();
+                _preferences.AdBlockingEnabled = false;
+                AdBlockingCheckBox.IsChecked = false;
+                UpdateAdBlockStatusText();
+                await SavePreferencesSafelyAsync();
+            },
+            () => _ = RefreshBrowserExtensionsAsync())
+        {
+            Owner = this
+        };
+        window.ShowDialog();
+        SetStatus("Plugins");
+    }
+
     private async Task RefreshBrowserExtensionsAsync()
     {
-        AddBrowserExtensionButton.IsEnabled = _browserAvailable && _extensionSupportAvailable;
         _browserExtensions.Clear();
         UpdateBrowserExtensionControls();
 
@@ -310,7 +489,6 @@ public partial class ShellWindow : Window
         catch (Exception exception)
         {
             _extensionSupportAvailable = false;
-            AddBrowserExtensionButton.IsEnabled = false;
             ExtensionManagerStatusText.Text = $"Could not read extensions from this WebView2 Runtime: {exception.Message}";
         }
 
@@ -328,7 +506,7 @@ public partial class ShellWindow : Window
         (sender as FrameworkElement)?.DataContext as BrowserExtensionItem
         ?? BrowserExtensionList.SelectedItem as BrowserExtensionItem;
 
-    private async void ManageExtensions_Click(object sender, RoutedEventArgs e) => await ShowExtensionsPanelAsync();
+    private void ManageExtensions_Click(object sender, RoutedEventArgs e) => ShowPluginStore();
 
     private void OpenAdBlockSettings_Click(object sender, RoutedEventArgs e)
     {
@@ -1390,7 +1568,10 @@ public partial class ShellWindow : Window
         AdBlockStatusText.Text = "Loading local rules or downloading the filter lists…";
         try
         {
-            var ruleCount = await _adBlockService.EnableAsync();
+            var enginePath = PluginPackageInstaller.GetPayloadFile("brave-adblock", "xtreme_adblock_bridge.dll");
+            if (enginePath is null)
+                throw new FileNotFoundException("Install Brave Adblock Engine from Plugins before enabling this setting.");
+            var ruleCount = await _adBlockService.EnableAsync(enginePath);
             if (!_adBlockFilterRegistered)
             {
                 Browser.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All, CoreWebView2WebResourceRequestSourceKinds.All);
@@ -1411,8 +1592,8 @@ public partial class ShellWindow : Window
             _adBlockService.Disable();
             _preferences.AdBlockingEnabled = false;
             AdBlockingCheckBox.IsChecked = false;
-            var reason = exception is DllNotFoundException or BadImageFormatException
-                ? "The ad-block engine is missing from this app build."
+            var reason = exception is FileNotFoundException or DllNotFoundException or BadImageFormatException
+                ? "Install Brave Adblock Engine from Plugins, then turn this setting on again."
                 : exception is HttpRequestException or TaskCanceledException or IOException
                     ? "Could not load the filter lists. Check your internet connection and try again."
                     : "The ad-block engine could not be started.";
@@ -1506,25 +1687,36 @@ public partial class ShellWindow : Window
 
     private void UpdateAdBlockStatusText()
     {
-        AdBlockStatusText.Text = _adBlockService.IsEnabled
-            ? $"On · {_blockedAdRequestCount:N0} requests blocked this session. Filter lists refresh automatically."
+        if (_adBlockService.IsEnabled)
+        {
+            AdBlockStatusText.Text = $"On · {_blockedAdRequestCount:N0} requests blocked this session. Filter lists refresh automatically.";
+            return;
+        }
+
+        AdBlockStatusText.Text = PluginPackageInstaller.GetPayloadFile("brave-adblock", "xtreme_adblock_bridge.dll") is null
+            ? "Install Brave Adblock Engine from Plugins first. Filter rules download when you enable it."
             : "Off. Filter rules download when you turn this on.";
     }
 
     private void ApplyTheme(bool dark)
     {
-        SetBrush("AppBackgroundBrush", dark ? "#101718" : "#F3F8FA");
-        SetBrush("SurfaceBrush", dark ? "#1B2425" : "#FFFFFF");
-        SetBrush("AccentBlueBrush", dark ? "#8EBBD0" : "#669CB5");
-        SetBrush("AccentGreenBrush", dark ? "#80BD9B" : "#6BA889");
-        SetBrush("PaleMintBrush", dark ? "#263D32" : "#E7F3EB");
-        SetBrush("MainTextBrush", dark ? "#E6F1ED" : "#20332D");
-        SetBrush("MutedTextBrush", dark ? "#AABAB4" : "#647570");
-        SetBrush("SecondarySurfaceBrush", dark ? "#222F30" : "#F7FAFB");
-        SetBrush("SecondaryTextBrush", dark ? "#C0D0CA" : "#49615A");
-        SetBrush("NavigationActiveBrush", dark ? "#263D32" : "#E7F3EB");
-        SetBrush("SubtleBlueBrush", dark ? "#23343A" : "#EEF5F8");
-        SetBrush("SubtleBorderBrush", dark ? "#344344" : "#DDE8E8");
+        SetBrush("AppBackgroundBrush", dark ? "#0B0B0F" : "#F5F3FA");
+        SetBrush("SurfaceBrush", dark ? "#111216" : "#FFFFFF");
+        SetBrush("AccentBlueBrush", dark ? "#06B6D4" : "#0891B2");
+        SetBrush("AccentCyanBrush", dark ? "#06B6D4" : "#0891B2");
+        SetBrush("AccentGreenBrush", dark ? "#34D399" : "#059669");
+        SetBrush("PaleMintBrush", dark ? "#251A37" : "#F0EAFE");
+        SetBrush("MainTextBrush", dark ? "#F5F5F7" : "#17151D");
+        SetBrush("MutedTextBrush", dark ? "#A1A1AA" : "#6B6875");
+        SetBrush("SecondarySurfaceBrush", dark ? "#1A1B23" : "#F4F2F8");
+        SetBrush("SecondaryTextBrush", dark ? "#D4D4D8" : "#494651");
+        SetBrush("NavigationActiveBrush", dark ? "#322248" : "#E9DEFF");
+        SetBrush("SubtleBlueBrush", dark ? "#171B27" : "#ECF7FA");
+        SetBrush("SubtleBorderBrush", dark ? "#2A2D36" : "#E1DEE8");
+        SetBrush("AccentPurpleBrush", dark ? "#8B5CF6" : "#7C3AED");
+        SetBrush("PurpleTintBrush", dark ? "#251A37" : "#F1EAFE");
+        SetBrush("AccentDangerBrush", dark ? "#EF4444" : "#DC2626");
+        SetBrush("AccentWarningBrush", dark ? "#F59E0B" : "#D97706");
     }
 
     private static void SetBrush(string key, string hex)

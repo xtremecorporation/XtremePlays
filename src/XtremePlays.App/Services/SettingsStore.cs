@@ -72,6 +72,8 @@ public sealed class SettingsStore
         result.SelectedAudioOutputId = string.IsNullOrWhiteSpace(result.SelectedAudioOutputId)
             ? null
             : result.SelectedAudioOutputId.Trim()[..Math.Min(result.SelectedAudioOutputId.Trim().Length, 512)];
+        result.SpotifyClientId = SanitizeClientId(result.SpotifyClientId);
+        result.YouTubeClientId = SanitizeClientId(result.YouTubeClientId);
         result.VoiceVolumePercent = Math.Clamp(result.VoiceVolumePercent, 0, 200);
         result.MusicVolumePercent = Math.Clamp(result.MusicVolumePercent, 0, 200);
         result.MasterVolumePercent = Math.Clamp(result.MasterVolumePercent, 0, 200);
@@ -84,6 +86,10 @@ public sealed class SettingsStore
     }
 
     public static string SanitizeTitle(string? title) => string.IsNullOrWhiteSpace(title) ? string.Empty : title.Trim()[..Math.Min(title.Trim().Length, 80)];
+
+    private static string SanitizeClientId(string? value) => string.IsNullOrWhiteSpace(value)
+        ? string.Empty
+        : value.Trim()[..Math.Min(value.Trim().Length, 256)];
 
     public static string? NormalizeWebUrl(string? value)
     {
