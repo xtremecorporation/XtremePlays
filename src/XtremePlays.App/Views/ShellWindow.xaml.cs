@@ -266,7 +266,7 @@ public partial class ShellWindow : Window
             BrowserUnavailablePanel.Visibility = Visibility.Collapsed;
             Browser.Visibility = Visibility.Visible;
             AppStatusBadge.Text = "Loading plugins";
-            var migrationNotices = await BundledBrowserExtensionService.RemoveLegacyDefaultsAsync(Browser.CoreWebView2.Profile);
+            var migrationNotices = (_extensionSupportAvailable ? await UnwantedBrowserExtensionCleanup.RemoveAsync(Browser.CoreWebView2.Profile) : Array.Empty<string>()).Concat(await BundledBrowserExtensionService.RemoveLegacyDefaultsAsync(Browser.CoreWebView2.Profile)).ToArray();
             if (_preferences.AdBlockingEnabled)
             {
                 await EnableAdBlockingAsync(savePreference: false);
@@ -278,7 +278,7 @@ public partial class ShellWindow : Window
             var readyMessage = _adBlockService.IsEnabled
                 ? "Ready. Optional ad filtering is on for new browser requests."
                 : "Ready. Choose a music service to begin.";
-            if (migrationNotices.Count > 0)
+            if (migrationNotices.Length > 0)
                 readyMessage += " Earlier default extensions could not all be removed; review them in Plugins.";
             SetStatus(readyMessage);
             AppStatusBadge.Text = "Browser ready";
