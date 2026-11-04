@@ -122,6 +122,14 @@ public static class BrowserExtensionImportService
         SaveSources(sources);
     }
 
+    public static string? GetRememberedSource(string extensionId)
+    {
+        var sources = LoadSources();
+        return sources.TryGetValue(extensionId, out var folderPath) && Directory.Exists(folderPath)
+            ? Path.GetFullPath(folderPath)
+            : null;
+    }
+
     public static void ForgetAndDeleteSource(string extensionId)
     {
         var sources = LoadSources();

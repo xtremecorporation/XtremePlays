@@ -92,6 +92,18 @@ jobs:
           vpk upload github --repoUrl $repositoryUrl --outputDir artifacts/velopack --token $env:VPK_TOKEN --tag $env:GITHUB_REF_NAME --releaseName $releaseName --targetCommitish main --merge
           if ($LASTEXITCODE -ne 0) { throw 'Could not upload the Velopack packages.' }
 
+      - name: Attach optional plugin packages
+        shell: pwsh
+        run: |
+          $pluginAssets = @(
+            'artifacts/plugins/XtremePlays-Plugin-AdBlock-6.52.0.zip',
+            'artifacts/plugins/XtremePlays-Plugin-AdGuard-5.5.3.42.zip',
+            'artifacts/plugins/XtremePlays-Plugin-BraveAdBlock-0.13.5-win-x64.zip'
+          )
+          foreach ($asset in $pluginAssets) { if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Plugin package is missing: $asset" } }
+          gh release upload $env:GITHUB_REF_NAME @pluginAssets --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload the optional plugin packages.' }
+
       - name: Add integrated setup and publish release
         shell: pwsh
         run: |

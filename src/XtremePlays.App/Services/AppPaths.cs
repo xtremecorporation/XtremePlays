@@ -11,6 +11,11 @@ public static class AppPaths
     public static string BrowserUserDataDirectory => Path.Combine(DataDirectory, "BrowserData");
     public static string ExtensionSourcesDirectory => Path.Combine(DataDirectory, "ExtensionSources");
     public static string BundledExtensionSourcesDirectory => Path.Combine(DataDirectory, "BundledExtensionSources");
+    public static string PluginsDirectory => Path.Combine(DataDirectory, "Plugins");
+    public static string PluginCatalogCachePath => Path.Combine(PluginsDirectory, "catalog.json");
+    public static string PluginStateFile => Path.Combine(PluginsDirectory, "installed.json");
+    public static string MusicLibraryCacheFile => Path.Combine(DataDirectory, "music-library.json");
+    public static string MusicTokensFile => Path.Combine(DataDirectory, "music-connections.dat");
     public static bool IsPortable { get; private set; }
 
     public static void Initialize(IEnumerable<string>? arguments = null)
@@ -32,6 +37,7 @@ public static class AppPaths
         Directory.CreateDirectory(BrowserUserDataDirectory);
         Directory.CreateDirectory(ExtensionSourcesDirectory);
         Directory.CreateDirectory(BundledExtensionSourcesDirectory);
+        Directory.CreateDirectory(PluginsDirectory);
         _initialized = true;
     }
 }

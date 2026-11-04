@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0
+
+- Keep the lightweight WebView2 browser and retain existing bookmarks, sessions, audio routing, mute shortcuts, settings, and updater behavior.
+- Add a searchable, categorized Plugins window backed only by the X-TREME GitHub catalog; extensions and the optional Brave network-filter engine download only when selected.
+- Verify GitHub plugin packages with SHA-256 before safe extraction, review extension permissions, and provide enable, disable, pin, update, and remove controls.
+- Move AdBlock, AdGuard, and the Brave filter engine out of the app installer into separate optional release packages.
+- Migrate previously auto-installed AdBlock and AdGuard from older releases so they appear as optional catalog plugins instead of defaults.
+- Apply the supplied purple/cyan design palette, dark surfaces, rounded cards, and Segoe UI Variable typography across the app.
+- Remove startup retries for WebView2-managed Clipboard and PDF extensions; only catalog plugins appear in the new Plugins window.
+- Add a maintainer workflow for packaging and publishing compatible unpacked extensions to GitHub Releases and listing them in `plugins/catalog.json`.
+- Remove Spotify/Google developer API setup. Home now uses the user's local saved links, with one-time migration of valid preview cache links and cleanup of obsolete OAuth tokens.
+
 ## 1.5.1
 
 - Fix the AdGuard package SHA-256 so it installs automatically after update.

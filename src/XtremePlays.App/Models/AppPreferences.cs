@@ -2,7 +2,7 @@ namespace XtremePlays.App.Models;
 
 public sealed class AppPreferences
 {
-    public bool DarkTheme { get; set; }
+    public bool DarkTheme { get; set; } = true;
     public bool AlwaysOnTop { get; set; }
     public double WindowWidth { get; set; } = 1180;
     public double WindowHeight { get; set; } = 760;
@@ -11,6 +11,8 @@ public sealed class AppPreferences
     public string LastUrl { get; set; } = "https://www.youtube.com/";
     public string? SelectedMicrophoneId { get; set; }
     public string? SelectedAudioOutputId { get; set; }
+    public List<string> SelectedMicrophoneIds { get; set; } = [];
+    public List<string> MonitorOutputIds { get; set; } = [];
     public int VoiceVolumePercent { get; set; } = 100;
     public int MusicVolumePercent { get; set; } = 100;
     public int MasterVolumePercent { get; set; } = 100;

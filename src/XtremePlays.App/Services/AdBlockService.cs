@@ -27,15 +27,20 @@ public sealed class AdBlockService : IDisposable
     private NativeAdBlockEngine? _engine;
     private bool _disposed;
     private long _generation;
+    private string? _enginePath;
 
     public bool IsEnabled
     {
         get { lock (_engineLock) return _engine is not null; }
     }
 
-    public async Task<int> EnableAsync(CancellationToken cancellationToken = default)
+    public async Task<int> EnableAsync(string enginePath, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
+            throw new FileNotFoundException("Install Brave Adblock Engine from Plugins before enabling this setting.", enginePath);
+        var fullEnginePath = Path.GetFullPath(enginePath);
+        _enginePath = fullEnginePath;
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
         cancellationToken = linkedCancellation.Token;
         await _enableLock.WaitAsync(cancellationToken);
@@ -60,7 +65,8 @@ public sealed class AdBlockService : IDisposable
                 throw new IOException("No usable ad filter lists are available. Connect to the internet and try again.");
             }
 
-            var replacement = await Task.Run(() => NativeAdBlockEngine.Create(string.Join("\n", cachedLists.Values)), cancellationToken);
+            var resolvedEnginePath = fullEnginePath;
+            var replacement = await Task.Run(() => NativeAdBlockEngine.Create(string.Join("\n", cachedLists.Values), resolvedEnginePath), cancellationToken);
             if (_disposed)
             {
                 replacement.Dispose();
@@ -108,6 +114,7 @@ public sealed class AdBlockService : IDisposable
             _engine = null;
         }
         engine?.Dispose();
+        _enginePath = null;
     }
 
     private async Task RefreshListsInBackgroundAsync(long generation, CancellationToken cancellationToken)
@@ -117,7 +124,9 @@ public sealed class AdBlockService : IDisposable
             var freshLists = await DownloadListsAsync(cancellationToken);
             if (freshLists.Count != FilterLists.Length) return;
 
-            var replacement = await Task.Run(() => NativeAdBlockEngine.Create(string.Join("\n", freshLists.Values)), cancellationToken);
+            var enginePath = _enginePath;
+            if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath)) return;
+            var replacement = await Task.Run(() => NativeAdBlockEngine.Create(string.Join("\n", freshLists.Values), enginePath), cancellationToken);
             try
             {
                 await SaveListsAsync(freshLists, cancellationToken);
@@ -256,52 +265,107 @@ public sealed class AdBlockService : IDisposable
 
     private sealed class NativeAdBlockEngine : IDisposable
     {
+        private readonly NativeAdBlockApi _api;
         private readonly NativeEngineHandle _handle;
 
-        private NativeAdBlockEngine(NativeEngineHandle handle) => _handle = handle;
-
-        public static NativeAdBlockEngine Create(string filters)
+        private NativeAdBlockEngine(NativeAdBlockApi api, NativeEngineHandle handle)
         {
-            var pointer = NativeMethods.CreateEngine(filters);
-            if (pointer == IntPtr.Zero)
+            _api = api;
+            _handle = handle;
+        }
+
+        public static NativeAdBlockEngine Create(string filters, string libraryPath)
+        {
+            var api = new NativeAdBlockApi(libraryPath);
+            try
             {
-                throw new InvalidOperationException("The Brave ad-block filter engine could not load the filter lists.");
+                var pointer = api.CreateEngine(filters);
+                if (pointer == IntPtr.Zero)
+                    throw new InvalidOperationException("The Brave ad-block filter engine could not load the filter lists.");
+                return new NativeAdBlockEngine(api, new NativeEngineHandle(pointer, api));
             }
-            return new NativeAdBlockEngine(new NativeEngineHandle(pointer));
+            catch
+            {
+                api.Dispose();
+                throw;
+            }
         }
 
         public bool ShouldBlock(string url, string sourceUrl, string requestType, string method) =>
-            NativeMethods.ShouldBlock(_handle, url, sourceUrl, requestType, method) != 0;
+            _api.ShouldBlock(_handle.DangerousGetHandle(), url, sourceUrl, requestType, method) != 0;
 
         public void Dispose() => _handle.Dispose();
     }
 
     private sealed class NativeEngineHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
-        public NativeEngineHandle(IntPtr handle) : base(ownsHandle: true) => SetHandle(handle);
+        private readonly NativeAdBlockApi _api;
+
+        public NativeEngineHandle(IntPtr handle, NativeAdBlockApi api) : base(ownsHandle: true)
+        {
+            _api = api;
+            SetHandle(handle);
+        }
 
         public override bool IsInvalid => handle == IntPtr.Zero || handle == new IntPtr(-1);
 
         protected override bool ReleaseHandle()
         {
-            NativeMethods.DestroyEngine(handle);
+            _api.DestroyEngine(handle);
+            _api.Dispose();
             return true;
         }
     }
 
-    private static class NativeMethods
+    private sealed class NativeAdBlockApi : IDisposable
     {
-        [DllImport("xtreme_adblock_bridge", EntryPoint = "xtreme_adblock_engine_create", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr CreateEngine([MarshalAs(UnmanagedType.LPUTF8Str)] string filters);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate IntPtr CreateEngineDelegate([MarshalAs(UnmanagedType.LPUTF8Str)] string filters);
 
-        [DllImport("xtreme_adblock_bridge", EntryPoint = "xtreme_adblock_engine_should_block", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int ShouldBlock(NativeEngineHandle engine,
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate int ShouldBlockDelegate(IntPtr engine,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string url,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string sourceUrl,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string requestType,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string method);
 
-        [DllImport("xtreme_adblock_bridge", EntryPoint = "xtreme_adblock_engine_destroy", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void DestroyEngine(IntPtr engine);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void DestroyEngineDelegate(IntPtr engine);
+
+        private IntPtr _library;
+        private readonly CreateEngineDelegate _create;
+        private readonly ShouldBlockDelegate _shouldBlock;
+        private readonly DestroyEngineDelegate _destroy;
+
+        public NativeAdBlockApi(string path)
+        {
+            _library = NativeLibrary.Load(path);
+            try
+            {
+                _create = Load<CreateEngineDelegate>("xtreme_adblock_engine_create");
+                _shouldBlock = Load<ShouldBlockDelegate>("xtreme_adblock_engine_should_block");
+                _destroy = Load<DestroyEngineDelegate>("xtreme_adblock_engine_destroy");
+            }
+            catch
+            {
+                NativeLibrary.Free(_library);
+                _library = IntPtr.Zero;
+                throw;
+            }
+        }
+
+        public IntPtr CreateEngine(string filters) => _create(filters);
+        public int ShouldBlock(IntPtr engine, string url, string sourceUrl, string requestType, string method) =>
+            _shouldBlock(engine, url, sourceUrl, requestType, method);
+        public void DestroyEngine(IntPtr engine) => _destroy(engine);
+
+        private T Load<T>(string name) where T : Delegate =>
+            Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(_library, name));
+
+        public void Dispose()
+        {
+            var library = Interlocked.Exchange(ref _library, IntPtr.Zero);
+            if (library != IntPtr.Zero) NativeLibrary.Free(library);
+        }
     }
 }
