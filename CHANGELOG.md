@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1
+
+- Ensure the header account button always displays **Account**.
+- Add **Check for updates** in About. It shows checking, up-to-date, available-version, and download progress states directly in the app.
+- Keep automatic checks on launch. Updates download in the background, then show **Install and restart** and **Install later**; a deferred download installs automatically at the next launch.
+
 ## 2.0.0
 
 - Keep the lightweight WebView2 browser and retain existing bookmarks, sessions, audio routing, mute shortcuts, settings, and updater behavior.

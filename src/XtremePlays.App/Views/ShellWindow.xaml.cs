@@ -14,6 +14,7 @@ using System.Windows.Threading;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Win32;
 using NAudio.CoreAudioApi;
+using Velopack;
 using XtremePlays.App.Models;
 using XtremePlays.App.Services;
 using XtremePlays.App.Views;
@@ -53,6 +54,8 @@ public partial class ShellWindow : Window
     private bool _musicHotkeyRegistered;
     private bool _updatePromptShown;
     private bool _isUpdateDownloadActive;
+    private bool _isUpdateCheckActive;
+    private UpdateInfo? _availableUpdate;
     private bool _adBlockFilterRegistered;
     private long _blockedAdRequestCount;
     private string? _hotkeyCaptureTarget;
@@ -64,6 +67,8 @@ public partial class ShellWindow : Window
     public ShellWindow()
     {
         InitializeComponent();
+        GoogleSignInButton.Content = "Account";
+        System.Windows.Automation.AutomationProperties.SetName(GoogleSignInButton, "Open Google account sign-in in the app browser");
         AboutVersionText.Text = $"Version {typeof(App).Assembly.GetName().Version?.ToString(3) ?? "2.0.0"} · X-TREME CORPORATION";
         BookmarkList.ItemsSource = _bookmarks;
         QuickBookmarkSelector.ItemsSource = _bookmarks;
@@ -126,83 +131,191 @@ public partial class ShellWindow : Window
 
     private async Task CheckAndInstallAvailableUpdateAsync()
     {
+        if (_isUpdateCheckActive || _isFinishingClose) return;
+
+        _isUpdateCheckActive = true;
+        AboutCheckForUpdatesButton.IsEnabled = false;
+        AboutUpdateVersionButton.Visibility = Visibility.Collapsed;
+        AboutUpdateStatusText.Text = "Checking for updates…";
         try
         {
-            _isUpdateDownloadActive = true;
-            TransferPanel.Visibility = Visibility.Visible;
-            TransferTitleText.Text = "Checking for app updates…";
-            TransferDetailText.Text = "The current version stays open while the update is checked.";
-            TransferProgressBar.IsIndeterminate = true;
-            TransferPercentText.Text = string.Empty;
-
-            var progress = new Progress<int>(percent =>
-            {
-                if (_isFinishingClose) return;
-                TransferProgressBar.IsIndeterminate = false;
-                TransferProgressBar.Value = Math.Clamp(percent, 0, 100);
-                TransferPercentText.Text = $"{Math.Clamp(percent, 0, 100)}%";
-                TransferTitleText.Text = "Downloading app update…";
-                TransferDetailText.Text = "You can keep using X-TREME PLAY'S while it downloads.";
-            });
-            var update = await _updateService.CheckAndDownloadAsync(progress);
+            var update = await _updateService.CheckForUpdatesAsync();
             if (_isFinishingClose) return;
             if (update is null)
             {
-                _isUpdateDownloadActive = false;
-                TransferPanel.Visibility = Visibility.Collapsed;
+                ShowUpToDateStatus();
                 return;
             }
 
-            TransferProgressBar.IsIndeterminate = false;
-            TransferProgressBar.Value = 100;
-            TransferPercentText.Text = "Ready";
-            TransferTitleText.Text = $"Version {update.Version} is ready";
-            TransferDetailText.Text = "Choose when to restart and install the update.";
-            SetStatus($"Version {update.Version} downloaded. Choose when to install it.");
-            _isUpdateDownloadActive = false;
-
-            if (_updatePromptShown) return;
-            _updatePromptShown = true;
-            var prompt = new UpdateReadyWindow(update.Version.ToString()) { Owner = this };
-            if (prompt.ShowDialog() != true)
-            {
-                TransferTitleText.Text = $"Update {update.Version} is ready";
-                TransferDetailText.Text = "It will install automatically the next time you open X-TREME PLAY'S.";
-                SetStatus($"Update {update.Version} is saved. It will install the next time you open the app.");
-                return;
-            }
-
-            if (!_compactMode)
-            {
-                _preferences.WindowWidth = Width;
-                _preferences.WindowHeight = Height;
-                _preferences.WindowLeft = Left;
-                _preferences.WindowTop = Top;
-            }
-            else
-            {
-                _preferences.WindowWidth = _normalWidth;
-                _preferences.WindowHeight = _normalHeight;
-                _preferences.AlwaysOnTop = _topmostBeforeCompact;
-            }
-
-            if (Browser.Source is not null) _preferences.LastUrl = Browser.Source.ToString();
-            _preferences.Bookmarks = _bookmarks.Select(bookmark => new Bookmark { Title = bookmark.Title, Url = bookmark.Url }).ToList();
-            if (!await SavePreferencesSafelyAsync()) return;
-
-            _audioMeterTimer.Stop();
-            _audioMixingRouter.Stop();
-            _isFinishingClose = true;
-            await Task.Delay(500);
-            _updateService.ApplyUpdatesAndRestart(update);
+            _availableUpdate = update;
+            AboutUpdateVersionButton.Content = $"Version {update.TargetFullRelease.Version} available · Download";
+            AboutUpdateVersionButton.Visibility = Visibility.Visible;
+            AboutUpdateStatusText.Text = $"Version {update.TargetFullRelease.Version} is available. Downloading automatically…";
+            await DownloadUpdateAndPromptAsync(update);
         }
         catch (Exception exception)
         {
-            _isFinishingClose = false;
             _isUpdateDownloadActive = false;
             TransferPanel.Visibility = Visibility.Collapsed;
+            AboutUpdateStatusText.Text = $"Update check failed: {exception.Message}";
             SetStatus($"Could not check or apply updates: {exception.Message}. The app will retry next time.", isError: true);
         }
+        finally
+        {
+            _isUpdateCheckActive = false;
+            AboutCheckForUpdatesButton.IsEnabled = !_isFinishingClose;
+        }
+    }
+
+    private async void CheckForUpdatesButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isUpdateCheckActive || _isFinishingClose) return;
+
+        _isUpdateCheckActive = true;
+        AboutCheckForUpdatesButton.IsEnabled = false;
+        AboutCheckForUpdatesButton.Content = "Checking…";
+        AboutUpdateVersionButton.Visibility = Visibility.Collapsed;
+        AboutUpdateStatusText.Text = "Checking for updates…";
+        try
+        {
+            var update = await _updateService.CheckForUpdatesAsync();
+            if (_isFinishingClose) return;
+            if (update is null)
+            {
+                ShowUpToDateStatus();
+                return;
+            }
+
+            _availableUpdate = update;
+            AboutUpdateVersionButton.Content = $"Version {update.TargetFullRelease.Version} available · Download and install";
+            AboutUpdateVersionButton.Visibility = Visibility.Visible;
+            AboutUpdateStatusText.Text = "Select the version above to download it. You can keep using the app while it downloads.";
+            SetStatus($"Version {update.TargetFullRelease.Version} is available. Select it in About to download.");
+        }
+        catch (Exception exception)
+        {
+            AboutUpdateStatusText.Text = $"Could not check for updates: {exception.Message}";
+            SetStatus($"Could not check for updates: {exception.Message}", isError: true);
+        }
+        finally
+        {
+            _isUpdateCheckActive = false;
+            AboutCheckForUpdatesButton.Content = "Check for updates";
+            AboutCheckForUpdatesButton.IsEnabled = !_isFinishingClose;
+        }
+    }
+
+    private async void InstallAvailableUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_availableUpdate is null || _isUpdateCheckActive || _isFinishingClose) return;
+
+        _isUpdateCheckActive = true;
+        AboutCheckForUpdatesButton.IsEnabled = false;
+        AboutUpdateVersionButton.IsEnabled = false;
+        try
+        {
+            await DownloadUpdateAndPromptAsync(_availableUpdate);
+        }
+        catch (Exception exception)
+        {
+            AboutUpdateVersionButton.IsEnabled = true;
+            AboutUpdateStatusText.Text = $"Download failed: {exception.Message}. Select the version to retry.";
+            SetStatus($"Could not download update: {exception.Message}", isError: true);
+        }
+        finally
+        {
+            _isUpdateCheckActive = false;
+            AboutCheckForUpdatesButton.IsEnabled = !_isFinishingClose;
+        }
+    }
+
+    private void ShowUpToDateStatus()
+    {
+        _availableUpdate = null;
+        AboutUpdateVersionButton.Visibility = Visibility.Collapsed;
+        AboutUpdateStatusText.Text = "Already up to date.";
+        var currentVersion = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+        SetStatus($"X-TREME PLAY'S is up to date · Version {currentVersion}.");
+    }
+
+    private async Task DownloadUpdateAndPromptAsync(UpdateInfo update)
+    {
+        _isUpdateDownloadActive = true;
+        TransferPanel.Visibility = Visibility.Visible;
+        TransferTitleText.Text = $"Downloading version {update.TargetFullRelease.Version}…";
+        TransferDetailText.Text = "Keep using X-TREME PLAY'S while the update downloads.";
+        TransferProgressBar.IsIndeterminate = true;
+        TransferPercentText.Text = string.Empty;
+
+        var progress = new Progress<int>(percent =>
+        {
+            if (_isFinishingClose) return;
+            var boundedPercent = Math.Clamp(percent, 0, 100);
+            TransferProgressBar.IsIndeterminate = false;
+            TransferProgressBar.Value = boundedPercent;
+            TransferPercentText.Text = $"{boundedPercent}%";
+            TransferTitleText.Text = $"Downloading version {update.TargetFullRelease.Version}…";
+            TransferDetailText.Text = "You can keep using X-TREME PLAY'S while it downloads.";
+            AboutUpdateStatusText.Text = $"Downloading version {update.TargetFullRelease.Version}… {boundedPercent}%";
+        });
+        VelopackAsset asset;
+        try
+        {
+            asset = await _updateService.DownloadUpdateAsync(update, progress);
+        }
+        catch
+        {
+            _isUpdateDownloadActive = false;
+            TransferPanel.Visibility = Visibility.Collapsed;
+            throw;
+        }
+        if (_isFinishingClose) return;
+
+        TransferProgressBar.IsIndeterminate = false;
+        TransferProgressBar.Value = 100;
+        TransferPercentText.Text = "Ready";
+        TransferTitleText.Text = $"Version {update.TargetFullRelease.Version} is ready";
+        TransferDetailText.Text = "Choose when to restart and install the update.";
+        AboutUpdateVersionButton.Visibility = Visibility.Collapsed;
+        AboutUpdateStatusText.Text = $"Version {update.TargetFullRelease.Version} downloaded and ready to install.";
+        SetStatus($"Version {update.TargetFullRelease.Version} downloaded. Choose when to install it.");
+        _isUpdateDownloadActive = false;
+
+        if (_updatePromptShown) return;
+        _updatePromptShown = true;
+        var prompt = new UpdateReadyWindow(update.TargetFullRelease.Version.ToString()) { Owner = this };
+        if (prompt.ShowDialog() != true)
+        {
+            TransferTitleText.Text = $"Update {update.TargetFullRelease.Version} is ready";
+            TransferDetailText.Text = "It will install automatically the next time you open X-TREME PLAY'S.";
+            AboutUpdateStatusText.Text = $"Update {update.TargetFullRelease.Version} is downloaded. It will install automatically the next time you open the app.";
+            SetStatus($"Update {update.TargetFullRelease.Version} is saved. It will install the next time you open the app.");
+            return;
+        }
+
+        if (!_compactMode)
+        {
+            _preferences.WindowWidth = Width;
+            _preferences.WindowHeight = Height;
+            _preferences.WindowLeft = Left;
+            _preferences.WindowTop = Top;
+        }
+        else
+        {
+            _preferences.WindowWidth = _normalWidth;
+            _preferences.WindowHeight = _normalHeight;
+            _preferences.AlwaysOnTop = _topmostBeforeCompact;
+        }
+
+        if (Browser.Source is not null) _preferences.LastUrl = Browser.Source.ToString();
+        _preferences.Bookmarks = _bookmarks.Select(bookmark => new Bookmark { Title = bookmark.Title, Url = bookmark.Url }).ToList();
+        if (!await SavePreferencesSafelyAsync()) return;
+
+        _audioMeterTimer.Stop();
+        _audioMixingRouter.Stop();
+        _isFinishingClose = true;
+        await Task.Delay(500);
+        _updateService.ApplyUpdatesAndRestart(asset);
     }
 
     private void TransferProgressChanged(DownloadProgressUpdate? update)

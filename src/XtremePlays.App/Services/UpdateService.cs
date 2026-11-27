@@ -9,17 +9,24 @@ public sealed class UpdateService
     private static readonly SemaphoreSlim UpdateLock = new(1, 1);
     private readonly UpdateManager _manager = new(new GithubSource(ReleasesRepository, accessToken: null, prerelease: false));
 
-    public async Task<VelopackAsset?> CheckAndDownloadAsync(IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+    public async Task<UpdateInfo?> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
         await UpdateLock.WaitAsync(cancellationToken);
         try
         {
-            var update = await _manager.CheckForUpdatesAsync();
-            if (update is null)
-            {
-                return null;
-            }
+            return await _manager.CheckForUpdatesAsync();
+        }
+        finally
+        {
+            UpdateLock.Release();
+        }
+    }
 
+    public async Task<VelopackAsset> DownloadUpdateAsync(UpdateInfo update, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+    {
+        await UpdateLock.WaitAsync(cancellationToken);
+        try
+        {
             await _manager.DownloadUpdatesAsync(update, progress is null ? null : value => progress.Report(value), cancellationToken);
             return update.TargetFullRelease;
         }

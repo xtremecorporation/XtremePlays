@@ -310,8 +310,13 @@
                             <Image Source="/Assets/BrandLogo.png" Width="64" Height="64" Stretch="Uniform" HorizontalAlignment="Left" AutomationProperties.Name="X-TREME PLAY'S logo" />
                             <TextBlock Text="X-TREME PLAY'S" Foreground="{DynamicResource MainTextBrush}" FontSize="28" FontWeight="SemiBold" Margin="0,18,0,0" />
                             <TextBlock Text="Your Music. Your Space. Your Play." Foreground="{DynamicResource AccentGreenBrush}" FontSize="15" Margin="0,4,0,0" />
-                            <TextBlock x:Name="AboutVersionText" Text="X-TREME CORPORATION" Foreground="{DynamicResource MutedTextBrush}" Margin="0,18,0,0" />
-                            <TextBlock Text="The app checks for updates every time it opens. Available updates download automatically and install as the app restarts." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                            <Grid Margin="0,18,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="AboutVersionText" Text="X-TREME CORPORATION" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                <Button x:Name="AboutCheckForUpdatesButton" Grid.Column="1" Content="Check for updates" Click="CheckForUpdatesButton_Click" Padding="10,5" Background="{DynamicResource PurpleTintBrush}" Foreground="{DynamicResource AccentPurpleBrush}" />
+                            </Grid>
+                            <Button x:Name="AboutUpdateVersionButton" Content="Version 2.0.1 available · Download" Click="InstallAvailableUpdate_Click" HorizontalAlignment="Left" Padding="0" Margin="0,8,0,0" Background="Transparent" Foreground="{DynamicResource AccentCyanBrush}" BorderThickness="0" Visibility="Collapsed" />
+                            <TextBlock x:Name="AboutUpdateStatusText" Text="Updates are checked automatically when the app opens." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,5,0,0" />
                             <TextBlock Text="X-TREME PLAY'S is a Windows music companion. Music websites provide playback, accounts, and their own player controls. Browser runtime availability is required. When you press Start sharing, the app mixes its browser audio with your chosen microphone and sends the mix to a virtual audio cable." Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,16,0,0" />
 
                             <Border Background="{DynamicResource SecondarySurfaceBrush}" CornerRadius="16" Padding="18" Margin="0,24,0,0">
